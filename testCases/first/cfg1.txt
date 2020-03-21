@@ -1,0 +1,9 @@
+E,E',T,T',F
+E - T E'
+E' - + T E'
+E' - empty
+T - F T'
+T' - * F T'
+T' - empty
+F - ( E )
+F - id

@@ -1,0 +1,14 @@
+R',R,C,B,A
+[,],(,),empty,entity,|,*
+R' - R
+R - [ C ]
+R - ( C )
+R - C
+R - empty
+R - entity
+C - B | B
+C - B
+B - A A
+B - A
+A - R *
+A - R

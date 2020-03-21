@@ -1,0 +1,10 @@
+E,E',T,T',F
++,*,(,),id,empty
+E - T E'
+E' - + T E'
+E' - empty
+T - F T'
+T' - * F T'
+T' - empty
+F - ( E )
+F - id
