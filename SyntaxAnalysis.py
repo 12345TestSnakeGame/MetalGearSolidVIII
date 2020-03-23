@@ -1,4 +1,4 @@
-
+from graphviz import Digraph
 
 # 面对过程的first集函数
 def first(first, n_terminals, terminals, rules):
@@ -798,7 +798,8 @@ class LR_analyzer:
                     number = operation[0][1]
                     if number == 0:
                         print('finished')
-                        self.tree = reduce_record
+                        # reduce_record.remove(end_terminal('$'))
+                        self.tree = reduce_record[0]
                         return
                     r = self.PDA.CFG.rule_by_number(number)
                     l = len(r.right)
@@ -846,7 +847,34 @@ class LR_analyzer:
         return symseq
 
     def visulize_tree(self):
-        pass
+        dot = Digraph(comment='parsing tree')
+
+        # 父根节点
+        father = self.tree
+        # 初始层数为第0层
+        level = 0
+        # 第几个符号
+        count = 0
+        dot.node('R\'', 'R\'')
+        self.__treenode(dot, 'R\'', father, 0)
+        dot.view()
+        # dot.render('test-output/test-table.gv', view=True)
+
+    def __treenode(self, dot, fname, father, number):
+
+        if not isinstance(father, dict):
+            return
+        count = 0
+        for (key, value) in father.items():
+            name = fname + '_' + str(number)
+            dot.node(name, str(key))
+            print(name)
+            dot.edge(fname, name)
+            if not isinstance(value, list):
+                continue
+            for nodes in value:
+                count += 1
+                self.__treenode(dot, name, nodes, count)
 
 
 # 从文件读取
@@ -938,12 +966,13 @@ if __name__ == '__main__':
     # FOLLOW = follow(start, n_terminals, terminals, rules, FIRST)
     # SELECT = select(start, n_terminals, terminals, rules, FIRST, FOLLOW)
     # print(SELECT)
-    c = cfg_readfile('cfg_regex.txt')
+    c = cfg_readfile('testCases/first/cfg_2.txt')
     # print(c.FIRST)
     # print(c.FOLLOW)
     # print(c.SELECT)
     pda = automata(c)
     # print(pda)
     parse = LR_analyzer(pda)
-    parse.analyze_str('entity | entity * ( entity | entity | ) * |')
+    parse.analyze_str('id + id * ( id + id * id ) + id')
+    parse.visulize_tree()
     pass
