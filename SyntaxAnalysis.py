@@ -213,7 +213,7 @@ class item(rule):
             self.empty = True
         else:
             self.empty = False
-        if position == len(rights):
+        if position == len(rights) or (len(rights) == 1 and rights[0].s == 'empty'):
             self.reduce = True
         else:
             self.reduce = False
@@ -715,7 +715,7 @@ class automata:
         for (key, value) in self.closure_dict.items():
             for i in value.items:
                 if i.reduce:
-                    for follows in i.lookahead.union({end_terminal('$')}):
+                    for follows in i.lookahead:
                         self.table['ACTION'][key][follows].append(('r', self.CFG.rule_number[i.to_rule()]))
 
 
@@ -769,10 +769,68 @@ class LR_analyzer:
 
     def analyze_str(self, input: str):
         symseq = self.__get_symbolSequence(input)
+        reduce_record = list(map(lambda x:{x:None}, symseq))
         symseq.reverse()
 
-        symbol_stack = [0]
-        status_stack = [symseq.pop()]
+        # 让栈提前于symbol而变化
+        symbol_stack = []
+        status_stack = [0]
+        current_symbol = symseq.pop()
+
+        index = 0
+        finished = True
+        while finished:
+            # 当前的栈底状态
+            current_status = status_stack[-1]
+            if isinstance(current_symbol, n_terminal):
+                operation = self.PDA.table['GO'][current_status][current_symbol]
+                if len(operation) == 0:
+                    raise Exception
+                symbol_stack.append(current_symbol)
+                status_stack.append(operation[0][1])
+                current_symbol = symseq.pop()
+            elif isinstance(current_symbol, terminal):
+                operation = self.PDA.table['ACTION'][current_status][current_symbol]
+                if len(operation) == 0:
+                    raise Exception('转换表读取异常')
+                # 归约
+                if operation[0][0] == 'r':
+                    number = operation[0][1]
+                    if number == 0:
+                        print('finished')
+                        self.tree = reduce_record
+                        return
+                    r = self.PDA.CFG.rule_by_number(number)
+                    l = len(r.right)
+                    if r.right[0].s == 'empty':
+                        l = 0
+                    # 把符号放回去
+                    before_reduce = len(symbol_stack)
+                    symseq.append(current_symbol)
+                    current_symbol = r.left
+                    for i in range(l):
+                        status_stack.pop()
+                        symbol_stack.pop()
+                    after_reduce = len(symbol_stack)
+                    # 归约的过程消除了一些符号
+                    if after_reduce < before_reduce:
+                        left_symbol = current_symbol
+                        node = {left_symbol:reduce_record[after_reduce: before_reduce]}
+                        reduce_record = reduce_record[:after_reduce] + [node] + reduce_record[before_reduce:]
+                    # 归约过程没有消除符号，即生成串的产生式的归约
+                    elif after_reduce == before_reduce:
+                        left_symbol = current_symbol
+                        reduce_record = reduce_record[:before_reduce] + [{left_symbol:empty_terminal('empty')}]\
+                                        + reduce_record[before_reduce:]
+                    else:
+                        raise Exception('符号栈长度异常')
+                # 移进
+                elif operation[0][0] == 's':
+                    symbol_stack.append(current_symbol)
+                    status_stack.append(operation[0][1])
+                    current_symbol = symseq.pop()
+
+        raise Exception
 
 
     def __get_symbolSequence(self, s: str):
@@ -783,9 +841,12 @@ class LR_analyzer:
         symseq = []
         for c in s.split(' '):
             symseq.append(self.PDA.CFG.namelist[c])
+        # symseq.insert(0, end_terminal('$'))
         symseq.append(end_terminal('$'))
-
         return symseq
+
+    def visulize_tree(self):
+        pass
 
 
 # 从文件读取
@@ -878,7 +939,11 @@ if __name__ == '__main__':
     # SELECT = select(start, n_terminals, terminals, rules, FIRST, FOLLOW)
     # print(SELECT)
     c = cfg_readfile('cfg_regex.txt')
+    # print(c.FIRST)
+    # print(c.FOLLOW)
+    # print(c.SELECT)
     pda = automata(c)
-    print(pda)
-
+    # print(pda)
+    parse = LR_analyzer(pda)
+    parse.analyze_str('entity | entity * ( entity | entity | ) * |')
     pass

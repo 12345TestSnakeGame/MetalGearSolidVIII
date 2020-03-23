@@ -1,0 +1,6 @@
+S',S,A,B
+b,empty
+S' - S
+S - A B
+A - empty
+B - b
