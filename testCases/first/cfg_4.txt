@@ -1,0 +1,8 @@
+S',S,L,R
+=,*,id
+S' - S
+S - L = R
+S - R
+L - * R
+L - id
+R - L

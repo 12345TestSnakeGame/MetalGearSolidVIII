@@ -140,28 +140,6 @@ def select(start, n_terminals, terminals, rules, FIRST, FOLLOW):
     return SELECT
 
 
-def LR_0_generator():
-    pass
-
-
-def SLR_1_generator():
-    pass
-
-
-def LR_1_generator():
-    pass
-
-
-def LALR_generator():
-    pass
-
-
-def top_down_parse():
-    pass
-
-
-def buttom_up_parse():
-    pass
 
 # 符号
 class symbol:
@@ -229,10 +207,20 @@ class rule:
 
 class item(rule):
     def __init__(self, position: int, left: n_terminal, rights: [symbol, ]):
+        if len(rights) == 0:
+            raise Exception
+        if isinstance(rights[0], empty_terminal):
+            self.empty = True
+        else:
+            self.empty = False
+        if position == len(rights):
+            self.reduce = True
+        else:
+            self.reduce = False
         rule.__init__(self, left, rights)
         self.position = position
         self.__operation_cache = {}
-        self.origin = (self.left, self.right, self.position)
+        self.origin = (self.left, tuple(self.right), self.position)
 
     def __repr__(self):
         l_part = ' '.join(list(map(lambda x: str(x), self.right[0:self.position])))
@@ -254,12 +242,19 @@ class item(rule):
     def to_rule(self):
         return rule(self.left, self.right)
 
+    def merge(self, other):
+        if not self.origin == other.origin:
+            return None
+        return self
+
     def successive_symbol(self):
         if len(self.right) == self.position:
             return None
         return self.right[self.position]
 
     def successive_item(self):
+        if self.empty:
+            return None
         if len(self.right) == self.position:
             return None
         return item(self.position + 1, self.left, self.right)
@@ -277,12 +272,18 @@ class item(rule):
 
 
 class item_lookahead(item):
-    def __init__(self, lookahead: [], position: int, left: n_terminal, rights: [symbol, ]):
+    def __init__(self, position: int, left: n_terminal, rights: [symbol, ], lookahead: set):
         item.__init__(self, position, left, rights)
         self.lookahead = lookahead
+        self.CFG_imported = False
+        self.CFG = None
 
     def __hash__(self):
-        count = super.__hash__()
+        count = 0
+        for v in self.right:
+            count += hash(v)
+        count *= (hash(self.left) + 1)
+        count *= (self.position + 1)
         for k in self.lookahead:
             count += hash(k)
         return count
@@ -291,8 +292,49 @@ class item_lookahead(item):
         return other.left == self.left and other.right == self.right and self.position == other.position and \
                self.lookahead == other.lookahead
 
+    def __repr__(self):
+        l_part = ' '.join(list(map(lambda x: str(x), self.right[0:self.position])))
+        r_part = ' '.join(list(map(lambda x: str(x), self.right[self.position:])))
+        ss =  self.left.s + ' -> ' + l_part + ' · ' + r_part
+        return ss + ', ' + ''.join(list(map(str, list(self.lookahead))))
+
+    def __str__(self):
+        l_part = ' '.join(list(map(lambda x: str(x), self.right[0:self.position])))
+        r_part = ' '.join(list(map(lambda x: str(x), self.right[self.position:])))
+        ss = self.left.s + ' -> ' + l_part + ' · ' + r_part
+        return ss + ', ' + ''.join(list(map(str, list(self.lookahead))))
+
+
+    # 计算first集合必须要cfg本体
+    def import_CFG(self, CFG):
+        self.CFG = CFG
+        self.CFG_imported = True
+
+    def next_lookahead(self):
+        if self.position >= len(self.right):
+            return None
+        elif isinstance(self.right[self.position], terminal):
+            return None
+        else:
+            s = self.CFG.select(self.right[self.position + 1:])
+            if empty_terminal('empty') in s:
+                s.remove(empty_terminal('empty'))
+                s = s.union(self.lookahead)
+            return s
+
+
+    def merge(self, other):
+        if not self.origin == other.origin:
+            return None
+
+        return item_lookahead(self.position, self.left, self.right, self.lookahead.union(other.lookahead))
+
     def successive_item(self):
-        pass
+        if self.empty:
+            return None
+        if len(self.right) == self.position:
+            return None
+        return item_lookahead(self.position + 1, self.left, self.right, self.lookahead)
 
     def get_operation(self, input: symbol):
         pass
@@ -310,6 +352,10 @@ class cfg:
         self.n_terminals = n_terminals
         self.terminals = terminals
         self.rules = rules
+
+        self.rule_number = {}
+        for idx in range(0, len(rules)):
+            self.rule_number[rules[idx]] = idx
 
         self.namelist = {}
         for s in n_terminals + terminals:
@@ -333,6 +379,13 @@ class cfg:
                 rs.append(r)
         return rs
 
+    def get_item(self, left_: n_terminal):
+        rs = []
+        for r in self.rules:
+            if r.left == left_:
+                rs.append(item(0, r.left, r.right))
+        return rs
+
     # 获得对应下标的产生式
     def rule_by_number(self, number: int):
         return self.rules[number]
@@ -343,14 +396,18 @@ class cfg:
 
     # 计算一个串的first集合。该串的所有符号都应该是cfg当中的符号
     def select(self, w: []):
+        if len(w) == 0:
+            return {empty_terminal('empty')}
         s = set()
         no_empty = False
-        for idx in range(0, len(s) + 1):
+        for idx in range(0, len(w) + 1):
             if no_empty:
                 break
             no_empty = True
-            if idx == len(s):
+            # 能够走到结尾说明前面的串都可以为空
+            if idx == len(w):
                 s.add(empty_terminal('empty'))
+                break
             for c in self.FIRST[w[idx]]:
                 if c.s == 'empty':
                     no_empty = False
@@ -489,20 +546,68 @@ class closure:
         # count *= (self.number + 1)
         return count
 
+    def __lt__(self, other):
+        return self.number < other.number
+
+    def __le__(self, other):
+        return self.number <= other.number
+
+    def __gt__(self, other):
+        return self.number > other.number
+
+    def __ge__(self, other):
+        return self.number >= other.number
+
 
 class automata:
     def __init__(self, lang: cfg):
         self.CFG = lang
         self.to_dict = {}
         self.from_dict = {}
+        self.closure_dict = {}
         self.__construct_automata()
         self.__construct_table()
         # TODO 造出一个完整的自动机的数据结构
 
     # 计算rules_对应的closure
     def cal_items(self, rules_: []):
+        if len(rules_) == 0:
+            return []
         cur_rules = rules_.copy()
+        # 我妥协了，还是得加个if判断
+        if type(rules_[0]) == item_lookahead:
+            change = True
+            while change:
+                change = False
+                l = len(cur_rules)
+                for idx in range(0, l):
+                    # 先获得raw后继符号
+                    s_symbol = cur_rules[idx].successive_symbol()
+                    if not s_symbol:
+                        continue
+                    new_rule = self.CFG.get_rule(s_symbol)
+                    for ii in range(len(cur_rules)):
+                        cur_rules[ii].import_CFG(self.CFG)
+                    look = cur_rules[idx].next_lookahead()
+                    new_item = list(map(lambda x: item_lookahead(0, x.left, x.right, look), new_rule))
+                    add_rule = list(filter(lambda x: x not in cur_rules, new_item))
+                    cur_rules += add_rule
+                if len(cur_rules) > l:
+                    change = True
+            # 去重，无展望符情况下无用
+            rule_dict = {}
+            for r in cur_rules:
+                if r.origin not in rule_dict:
+                    rule_dict[r.origin] = r
+                else:
+                    rule_dict[r.origin] = rule_dict[r.origin].merge(r)
 
+            cur_rules = []
+            for (key, value) in rule_dict.items():
+                cur_rules.append(value)
+            return cur_rules
+        else:
+            pass
         change = True
         while change:
             change = False
@@ -512,12 +617,14 @@ class automata:
                 if not s_symbol:
                     continue
                 new_rule = self.CFG.get_rule(s_symbol)
+
                 new_item = list(map(lambda x: item(0, x.left, x.right), new_rule))
                 add_rule = list(filter(lambda x: x not in cur_rules, new_item))
-                cur_rules += list(map(lambda x: item(0, x.left, x.right), add_rule))
+                # cur_rules += list(map(lambda x: item(0, x.left, x.right), add_rule))
+                cur_rules += add_rule
             if len(cur_rules) > l:
                 change = True
-        # 去重，无展望符情况下无用
+
         return cur_rules
 
     def GOTO(self, c: closure, sym: symbol):
@@ -527,7 +634,9 @@ class automata:
         # 对状态集的计数
         count = 0
         initial_rules = self.CFG.get_rule(self.CFG.start)
-        initial_items = list(map(lambda x: item(0, x.left, x.right), initial_rules))
+        # initial_items = list(map(lambda x: item(0, x.left, x.right), initial_rules))
+        initial_items = list(map(lambda x: item_lookahead(0, x.left, x.right, {end_terminal('$')}), initial_rules))
+        map(lambda x: x.import_CFG(self.CFG), initial_items)
         i_r_closure = closure(count, self.cal_items(initial_items))
 
         closure_pool = set()
@@ -575,19 +684,109 @@ class automata:
                     reversed_status_dict[temp_closure] = count
             for v in exploring:
                 closure_pool.add(v)
+        self.closures = closure_pool
+
+        self.closure_count = 0
+        for c in closure_pool:
+            self.closure_count += 1
+            self.closure_dict[c.number] = c
 
     # 根据自动机生成分析表
     def __construct_table(self):
-        pass
+        # *** item_lookahead only ***
+        self.table = {'ACTION':{}, 'GO':{}}
+        # 初始化
+        for idx in range(0, self.closure_count + 1):
+            self.table['GO'][idx] = {}
+            self.table['ACTION'][idx] = {}
+            for n in self.CFG.n_terminals:
+                self.table['GO'][idx][n] = []
+            for t in self.CFG.terminals + [end_terminal('$')]:
+                if not isinstance(t, empty_terminal):
+                    self.table['ACTION'][idx][t] = []
+        # 填充移进
+        for (key, value) in self.to_dict.items():
+            for targets in value:
+                if isinstance(targets[0], n_terminal):
+                    self.table['GO'][key][targets[0]].append(('s', targets[1]))
+                elif isinstance(targets[0], terminal):
+                    self.table['ACTION'][key][targets[0]].append(('s', targets[1]))
+        # 填充归约
+        for (key, value) in self.closure_dict.items():
+            for i in value.items:
+                if i.reduce:
+                    for follows in i.lookahead.union({end_terminal('$')}):
+                        self.table['ACTION'][key][follows].append(('r', self.CFG.rule_number[i.to_rule()]))
+
 
     def __repr__(self):
-        return str(self.to_dict)
+        c = list(self.closures)
+        c.sort()
+        tablestr = ''
+        tablestr += '\nACTION\n\t'
+        for n in self.CFG.terminals + [end_terminal('$')]:
+            if isinstance(n, empty_terminal):
+                continue
+            tablestr += str(n) + '\t'
+        tablestr += '\n'
+        # 每一行
+        for i in range(self.closure_count + 1):
+            tablestr += '\n' + str(i) + '\t'
+            for (key1, value1) in self.table['ACTION'][i].items():
+                if len(value1) == 0:
+                    tablestr += '[]\t'
+                    continue
+                # for k in value1:
+                #     tablestr += k[0] + str(k[1]) + '\t'
+                tablestr += ','.join(list(map(lambda x: x[0] + str(x[1]), value1)))
+                tablestr += '\t'
+        tablestr += '\nGO\n'
+        for t in self.CFG.n_terminals:
+            tablestr += str(t) + '\t'
+        tablestr += '\n'
+        # 每一行
+        for i in range(self.closure_count):
+            tablestr += '\n' + str(i) + '\t'
+            for (key1, value1) in self.table['GO'][i].items():
+                if len(value1) == 0:
+                    tablestr += '[]\t'
+                    continue
+                for k in value1:
+                    tablestr += k[0] + str(k[1]) + '\t'
+                tablestr += '\t'
+        return str(self.to_dict) + '\n' + '\n'.join(list(map(str, c))) + '\n' + tablestr
 
     def __eq__(self, other):
         return self.CFG == other.CFG
 
     def __hash__(self):
         return hash(self.CFG)
+
+
+class LR_analyzer:
+    def __init__(self, pda:automata):
+        self.PDA = pda
+
+    def analyze_str(self, input: str):
+        symseq = self.__get_symbolSequence(input)
+        symseq.reverse()
+
+        symbol_stack = [0]
+        status_stack = [symseq.pop()]
+
+
+    def __get_symbolSequence(self, s: str):
+        if len(s) == 0:
+            return None
+        elif s[-1] == '\n':
+            s = s[:-1]
+        symseq = []
+        for c in s.split(' '):
+            symseq.append(self.PDA.CFG.namelist[c])
+        symseq.append(end_terminal('$'))
+
+        return symseq
+
 
 # 从文件读取
 def cfg_readfile(filename: str):
@@ -620,6 +819,9 @@ def cfg_readfile(filename: str):
 
     rule_line = lines[2:]
     for line in rule_line:
+        # 注释语句
+        if line[0] == '#':
+            continue
         if len(line) <= 1:
             continue
         if line[-1] == '\n':
@@ -675,7 +877,7 @@ if __name__ == '__main__':
     # FOLLOW = follow(start, n_terminals, terminals, rules, FIRST)
     # SELECT = select(start, n_terminals, terminals, rules, FIRST, FOLLOW)
     # print(SELECT)
-    c = cfg_readfile('testCases/first/cfg_3.txt')
+    c = cfg_readfile('cfg_regex.txt')
     pda = automata(c)
     print(pda)
 
