@@ -418,8 +418,9 @@ class cfg:
                 s.add(c)
         return s
 
-    # 计算每个符号的select集
+    # 计算每个产生式的select集
     def __select(self):
+        # 对每条产生式
         for r in self.rules:
             self.SELECT[r] = set()
 
@@ -434,7 +435,7 @@ class cfg:
                     break
                 cur = r.right[i]
                 for v in self.FIRST[cur]:
-                    if v.s == 'empty':
+                    if isinstance(v, empty_terminal):
                         no_empty = False
                         continue
                     self.SELECT[r].add(v)
@@ -459,11 +460,11 @@ class cfg:
                     # 对于最后一个符号是非终结符的情况，在其follow集中添加左部的first集中的非空元素
                     if idx == len(cur.right) - 1 and isinstance(cur.right[idx], n_terminal):
                         for temp in self.FOLLOW[cur.left]:
-                            if not isinstance(temp, empty_terminal):
+                            if not isinstance(temp, empty_terminal) and temp not in self.FOLLOW[cur.right[idx]]:
                                 self.FOLLOW[cur.right[idx]].add(temp)
                                 change = True
                     # 对于非最后一个符号是非终结符的情况，在其follow集中添加first（其后的子串）
-                    elif idx < len(cur.right) - 1 and type(cur.right[idx]) == n_terminal:
+                    elif idx < len(cur.right) - 1 and isinstance(cur.right[idx], n_terminal):
                         # 对其后的子串进行遍历
                         no_empty = False
                         for k in range(idx + 1, len(cur.right) + 1):
@@ -473,12 +474,12 @@ class cfg:
                             # 当遍历到最后一符号，说明前面的所有符号都可以为空
                             if k == len(cur.right):
                                 for temp in self.FOLLOW[cur.left]:
-                                    if temp.s != 'empty' and temp not in self.FOLLOW[cur.right[idx]]:
+                                    if not isinstance(temp, empty_terminal) and temp not in self.FOLLOW[cur.right[idx]]:
                                         self.FOLLOW[cur.right[idx]].add(temp)
                                         change = True
                                 break
                             for temp in self.FIRST[cur.right[k]]:
-                                if temp.s == 'empty':
+                                if isinstance(temp, empty_terminal):
                                     no_empty = False
                                     continue
                                 if temp not in self.FOLLOW[cur.right[idx]]:
@@ -489,7 +490,7 @@ class cfg:
     def __first(self):
         # 首先，所有的终结符的first是自己本身
         for t in self.terminals:
-            self.FIRST[t] = {[t]}
+            self.FIRST[t] = set([t])
         # 初始化非终结符的first集合
         for nt in self.n_terminals:
             self.FIRST[nt] = set()
