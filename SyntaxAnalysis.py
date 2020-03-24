@@ -223,14 +223,12 @@ class item(rule):
             self.empty = True
         else:
             self.empty = False
-        if position == len(rights):
-            self.has_successive = False
-        else:
-            self.has_successive = True
         if position == len(rights) or (len(rights) == 1 and self.empty):
             self.reduce = True
+            self.has_successive = False
         else:
             self.reduce = False
+            self.has_successive = True
         rule.__init__(self, left, rights)
         self.position = position
         self.__operation_cache = {}
@@ -327,7 +325,7 @@ class item_lookahead(item):
 
 
     def merge(self, other):
-        if not self.core == other.origin:
+        if not self.core == other.core:
             return None
 
         return item_lookahead(self.position, self.left, self.right, self.lookahead.union(other.lookahead))
@@ -544,7 +542,11 @@ class closure:
 
     # *** 只在item为item_lookahead的时候才可以调用 ***
     def closure_merge(self, other):
-        if hash(self.core) != hash(other.core):
+        s = list(self.core)
+        s.sort()
+        o = list(other.core)
+        o.sort()
+        if hash(tuple(s)) != hash(tuple(o)):
             raise Exception('两个closure的核心不相同')
         newitems = []
         for i in self.items:
@@ -656,6 +658,7 @@ class Automata:
 
         # 计算LR(0)
         self.__initial_closure = self.__initial_closure_LR0
+        self.__cal_items = self.__cal_items_LR0
         c_pool, s_trans = self.__construct_automata()
         self.__construct_table_LR0(c_pool, s_trans)
 
@@ -664,6 +667,7 @@ class Automata:
 
         # 计算LR(1)
         self.__initial_closure = self.__initial_closure_LR1
+        self.__cal_items = self.__cal_items_LR1
         c_pool, s_trans = self.__construct_automata()
         self.__construct_table_LR1(c_pool, s_trans)
 
@@ -973,6 +977,8 @@ class Automata:
             closure_dict[k.number] = k
         table = {'ACTION': {}, 'GO': {}}
         terminal_list = list(self.CFG.terminals) + [end_terminal('$')]
+        if empty_terminal('empty') in terminal_list:
+            terminal_list.remove(empty_terminal('empty'))
         n_terminal_list = list(self.CFG.n_terminals)
         # 初始化
         for idx in range(0, closure_count + 1):
@@ -1008,6 +1014,8 @@ class Automata:
             closure_dict[k.number] = k
         table = {'ACTION': {}, 'GO': {}}
         terminal_list = list(self.CFG.terminals) + [end_terminal('$')]
+        if empty_terminal('empty') in terminal_list:
+            terminal_list.remove(empty_terminal('empty'))
         n_terminal_list = list(self.CFG.n_terminals)
         # 初始化
         for idx in range(0, closure_count + 1):
@@ -1043,6 +1051,8 @@ class Automata:
             closure_dict[k.number] = k
         table = {'ACTION': {}, 'GO': {}}
         terminal_list = list(self.CFG.terminals) + [end_terminal('$')]
+        if empty_terminal('empty') in terminal_list:
+            terminal_list.remove(empty_terminal('empty'))
         n_terminal_list = list(self.CFG.n_terminals)
         # 初始化
         for idx in range(0, closure_count + 1):
@@ -1079,6 +1089,8 @@ class Automata:
             closure_dict[k.number] = k
         table = {'ACTION': {}, 'GO': {}}
         terminal_list = list(self.CFG.terminals) + [end_terminal('$')]
+        if empty_terminal('empty') in terminal_list:
+            terminal_list.remove(empty_terminal('empty'))
         n_terminal_list = list(self.CFG.n_terminals)
         # 初始化
         for idx in range(0, closure_count + 1):
@@ -1133,10 +1145,7 @@ class Automata:
         return hash(self.CFG)
 
     def __str__(self):
-        return self.__string('LR0', self.closures_LR0, self.trans_LR0, self.table_LR0) \
-                 + self.__string('SLR', self.closures_SLR, self.trans_SLR, self.table_SLR) \
-                 + self.__string('LR1', self.closures_LR1, self.trans_LR1, self.table_LR1) \
-                 + self.__string('LALR', self.closures_LALR, self.trans_LALR, self.table_LALR)
+        return self.__repr__()
 
 
 class LR_analyzer:
@@ -1252,6 +1261,8 @@ class LR_analyzer:
                 count += 1
                 self.__treenode(dot, name, nodes, count)
 
+class LL_analyzer:
+    pass
 
 # 从文件读取
 def cfg_readfile(filename: str):
@@ -1342,7 +1353,7 @@ if __name__ == '__main__':
     # FOLLOW = follow(start, n_terminals, terminals, rules, FIRST)
     # SELECT = select(start, n_terminals, terminals, rules, FIRST, FOLLOW)
     # print(SELECT)
-    c = cfg_readfile('testCases/first/cfg_q7.8.txt')
+    c = cfg_readfile('cfg_regex.txt')
     # print(c.FIRST)
     # print(c.FOLLOW)
     # print(c.SELECT)
