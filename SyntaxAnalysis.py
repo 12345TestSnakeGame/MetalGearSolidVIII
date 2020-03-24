@@ -140,7 +140,6 @@ def select(start, n_terminals, terminals, rules, FIRST, FOLLOW):
     return SELECT
 
 
-
 # 符号
 class symbol:
     def __init__(self, name: str):
@@ -353,10 +352,12 @@ class cfg:
         self.terminals = terminals
         self.rules = rules
 
+        # 由产生式获取其序号
         self.rule_number = {}
         for idx in range(0, len(rules)):
             self.rule_number[rules[idx]] = idx
 
+        # namelist可以根据字符串检索符号
         self.namelist = {}
         for s in n_terminals + terminals:
             self.namelist[s.s] = s
@@ -379,6 +380,7 @@ class cfg:
                 rs.append(r)
         return rs
 
+    # 获得以left为左部的产生式的初始项目
     def get_item(self, left_: n_terminal):
         rs = []
         for r in self.rules:
@@ -396,6 +398,7 @@ class cfg:
 
     # 计算一个串的first集合。该串的所有符号都应该是cfg当中的符号
     def select(self, w: []):
+        # 若串的长度为0，则select集合中只包含空串
         if len(w) == 0:
             return {empty_terminal('empty')}
         s = set()
@@ -445,6 +448,7 @@ class cfg:
         # 开始符的follow集添加一个end
         self.FOLLOW[self.start].add(end_terminal('$'))
 
+        # 与__first相同，直到不发生变化时停止循环
         change = True
         while change:
             change = False
@@ -452,10 +456,10 @@ class cfg:
             for cur in self.rules:
                 # 从尾部向前搜索
                 for idx in range(len(cur.right) - 1, -1, -1):
-                    # 对于最后一个符号是非终结符的情况，在其follow集中添加左部的first集中的元素
-                    if idx == len(cur.right) - 1 and type(cur.right[idx]) == n_terminal:
+                    # 对于最后一个符号是非终结符的情况，在其follow集中添加左部的first集中的非空元素
+                    if idx == len(cur.right) - 1 and isinstance(cur.right[idx], n_terminal):
                         for temp in self.FOLLOW[cur.left]:
-                            if temp.s != 'empty' and temp not in self.FOLLOW[cur.right[idx]]:
+                            if not isinstance(temp, empty_terminal) and temp not in self.FOLLOW[cur.right[idx]]:
                                 self.FOLLOW[cur.right[idx]].add(temp)
                                 change = True
                     # 对于非最后一个符号是非终结符的情况，在其follow集中添加first（其后的子串）
@@ -485,7 +489,7 @@ class cfg:
     def __first(self):
         # 首先，所有的终结符的first是自己本身
         for t in self.terminals:
-            self.FIRST[t] = set([t])
+            self.FIRST[t] = {[t]}
         # 初始化非终结符的first集合
         for nt in self.n_terminals:
             self.FIRST[nt] = set()
@@ -493,29 +497,33 @@ class cfg:
         # 能够推导出空串的非终结符
         empty_set = set()
 
+        # 设置change，当所有symbol的first集不再变化时停止循环
         change = True
         while change:
             change = False
             # 对每一条产生式
             for cur in self.rules:
                 # 产生式左部的新first集合
-                newv = set()
+                new_first_symbol = set()
                 no_empty = False
                 for idx in range(0, len(cur.right) + 1):
                     if no_empty:
                         break
                     no_empty = True
+                    # 循环到尾，说明前面的符号都可以为空串，那么first集合中包含空串
                     if idx == len(cur.right):
-                        newv.add(self.namelist['empty'])
+                        new_first_symbol.add(self.namelist['empty'])
                         break
                     # 对第idx个符号进行检查
+                    # 循环到idx，说明idx前面的符号都可以为空，因此将idx符号first集中的所有元素加入
                     cur_sym = cur.right[idx]
                     for cur_first in self.FIRST[cur_sym]:
-                        newv.add(cur_first)
+                        new_first_symbol.add(cur_first)
                         if cur_first.s == 'empty':
                             no_empty = False
-                if len(newv - self.FIRST[cur.left]) > 0:
-                    for sy in newv:
+                # 如果有新的符号可以添加
+                if len(new_first_symbol - self.FIRST[cur.left]) > 0:
+                    for sy in new_first_symbol:
                         self.FIRST[cur.left].add(sy)
                     change = True
 
@@ -630,6 +638,8 @@ class automata:
     def GOTO(self, c: closure, sym: symbol):
         pass
 
+    # 根据产生式计算自动机
+    # 默认使用LR(1)
     def __construct_automata(self):
         # 对状态集的计数
         count = 0
@@ -692,6 +702,7 @@ class automata:
             self.closure_dict[c.number] = c
 
     # 根据自动机生成分析表
+    # 默认根据LR(1)生成
     def __construct_table(self):
         # *** item_lookahead only ***
         self.table = {'ACTION':{}, 'GO':{}}
@@ -966,13 +977,13 @@ if __name__ == '__main__':
     # FOLLOW = follow(start, n_terminals, terminals, rules, FIRST)
     # SELECT = select(start, n_terminals, terminals, rules, FIRST, FOLLOW)
     # print(SELECT)
-    c = cfg_readfile('cfg_regex.txt')
+    c = cfg_readfile('testCases/first/cfg_q7.8.txt')
     # print(c.FIRST)
     # print(c.FOLLOW)
     # print(c.SELECT)
     pda = automata(c)
     print(pda)
-    parse = LR_analyzer(pda)
-    parse.analyze_str('( entity ( entity | entity | entity ) entity entity * ) | entity')
-    parse.visulize_tree()
+    # parse = LR_analyzer(pda)
+    # parse.analyze_str('( entity ( entity | entity | entity ) entity entity * ) | entity')
+    # parse.visulize_tree()
     pass
