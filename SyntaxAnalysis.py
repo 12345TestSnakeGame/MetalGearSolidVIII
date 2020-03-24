@@ -459,7 +459,7 @@ class cfg:
                     # 对于最后一个符号是非终结符的情况，在其follow集中添加左部的first集中的非空元素
                     if idx == len(cur.right) - 1 and isinstance(cur.right[idx], n_terminal):
                         for temp in self.FOLLOW[cur.left]:
-                            if not isinstance(temp, empty_terminal) and temp not in self.FOLLOW[cur.right[idx]]:
+                            if not isinstance(temp, empty_terminal):
                                 self.FOLLOW[cur.right[idx]].add(temp)
                                 change = True
                     # 对于非最后一个符号是非终结符的情况，在其follow集中添加first（其后的子串）
