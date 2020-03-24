@@ -157,6 +157,17 @@ class symbol:
     def __hash__(self):
         return hash(self.s)
 
+    def __lt__(self, other):
+        return self.s < other.s
+
+    def __le__(self, other):
+        return self.s <= other.s
+
+    def __gt__(self, other):
+        return self.s > other.s
+
+    def __ge__(self, other):
+        return self.s >= other.s
 
 # 非终结符
 class n_terminal(symbol):
@@ -212,14 +223,18 @@ class item(rule):
             self.empty = True
         else:
             self.empty = False
-        if position == len(rights) or (len(rights) == 1 and rights[0].s == 'empty'):
+        if position == len(rights):
+            self.has_successive = False
+        else:
+            self.has_successive = True
+        if position == len(rights) or (len(rights) == 1 and self.empty):
             self.reduce = True
         else:
             self.reduce = False
         rule.__init__(self, left, rights)
         self.position = position
         self.__operation_cache = {}
-        self.origin = (self.left, tuple(self.right), self.position)
+        self.core = (self.left, tuple(self.right), self.position)
 
     def __repr__(self):
         l_part = ' '.join(list(map(lambda x: str(x), self.right[0:self.position])))
@@ -242,7 +257,7 @@ class item(rule):
         return rule(self.left, self.right)
 
     def merge(self, other):
-        if not self.origin == other.origin:
+        if not self.core == other.origin:
             return None
         return self
 
@@ -257,17 +272,6 @@ class item(rule):
         if len(self.right) == self.position:
             return None
         return item(self.position + 1, self.left, self.right)
-
-    # 对于一个输入符号，输出该产生式对该符号的操作 接受/不接受
-    def get_operation(self, input: symbol):
-
-        pass
-
-    # 合法的规约符号
-    # 当当前项目不是规约项目时，未定义行为
-    def legal_reduce(self, input: symbol):
-        # 普通item无任何限制
-        return True
 
 
 class item_lookahead(item):
@@ -323,7 +327,7 @@ class item_lookahead(item):
 
 
     def merge(self, other):
-        if not self.origin == other.origin:
+        if not self.core == other.origin:
             return None
 
         return item_lookahead(self.position, self.left, self.right, self.lookahead.union(other.lookahead))
@@ -334,13 +338,6 @@ class item_lookahead(item):
         if len(self.right) == self.position:
             return None
         return item_lookahead(self.position + 1, self.left, self.right, self.lookahead)
-
-    def get_operation(self, input: symbol):
-        pass
-
-    def legal_reduce(self, input: symbol):
-
-        return False
 
 
 class cfg:
@@ -540,6 +537,23 @@ class closure:
     def __init__(self, number: int, items: [item, ]):
         self.number = number
         self.items = items
+        self.core = set(map(lambda x: x.core, items))
+
+    def set_number(self, number: int):
+        self.number = number
+
+    # *** 只在item为item_lookahead的时候才可以调用 ***
+    def closure_merge(self, other):
+        if hash(self.core) != hash(other.core):
+            raise Exception('两个closure的核心不相同')
+        newitems = []
+        for i in self.items:
+            for j in other.items:
+                if hash(i.core) == hash(j.core):
+                    i.merge(j)
+            newitems.append(i)
+        return closure(self.number, newitems)
+
 
     def __eq__(self, other):
         # return self.number == other.number and self.items == other.items
@@ -552,6 +566,7 @@ class closure:
         count = 0
         for i in self.items:
             count += i.__hash__()
+        # 不同序号的closure有可能是同一个
         # count *= (self.number + 1)
         return count
 
@@ -568,18 +583,100 @@ class closure:
         return self.number >= other.number
 
 
-class automata:
-    def __init__(self, lang: cfg):
+class ParsingTable:
+    def __init__(self, table: {}, terminal_list: [], n_terminal_list: []):
+        self.ACTION = []
+        self.GOTO = []
+        # 存放符号到列数的映射
+        self.symbol_index = {}
+        self.t = {}
+        self.nt = {}
+        for idx in range(len(terminal_list)):
+            self.t[terminal_list[idx].s] = idx
+        for idx in range(len(n_terminal_list)):
+            self.nt[n_terminal_list[idx].s] = idx
+
+        action_tab = table['ACTION']
+        count = 0
+        for (key, value) in action_tab.items():
+            self.ACTION.append([])
+            for (key1, value1) in value.items():
+                self.ACTION[count].append(value1)
+            count = count + 1
+        goto_tab = table['GO']
+        count = 0
+        for (key, value) in goto_tab.items():
+            self.GOTO.append([])
+            for (key1, value1) in value.items():
+                self.GOTO[count].append(value1)
+            count += 1
+
+    def get_action(self, status: int, tstr: str):
+        idx = self.t[tstr]
+        return self.ACTION[status][idx]
+
+    def get_goto(self, status: int, n_tstr: str):
+        idx = self.nt[n_tstr]
+        return self.GOTO[status][idx]
+
+    def __string(self):
+        string = 'ACTION\n\t' + '\t'.join(self.t) + '\n'
+        for i in range(len(self.ACTION)):
+            string = string + str(i) + '\t'
+            for k in self.ACTION[i]:
+                if len(k) == 0:
+                    string += '[]\t'
+                else:
+                    string += ','.join(list(map(lambda x: str(x[0]) + str(x[1]), k))) + '\t'
+            string += '\n'
+        string += '\nGOTO\n\t' + '\t'.join(self.nt) + '\n'
+        for i in range(len(self.GOTO)):
+            string = string + str(i) + '\t'
+            for k in self.ACTION[i]:
+                if len(k) == 0:
+                    string += '[]\t'
+                else:
+                    string += ','.join(list(map(lambda x: str(x[0]) + str(x[1]), k))) + '\t'
+            string += '\n'
+        return string
+
+    def __repr__(self):
+        return self.__string()
+
+    def __str__(self):
+        return self.__string()
+
+
+
+
+
+class Automata:
+    def __init__(self, lang: cfg, lr_mode = 'LR1'):
         self.CFG = lang
-        self.to_dict = {}
-        self.from_dict = {}
-        self.closure_dict = {}
-        self.__construct_automata()
-        self.__construct_table()
+
+        # 计算LR(0)
+        self.__initial_closure = self.__initial_closure_LR0
+        c_pool, s_trans = self.__construct_automata()
+        self.__construct_table_LR0(c_pool, s_trans)
+
+        # 计算SLR
+        self.__construct_table_SLR(c_pool, s_trans)
+
+        # 计算LR(1)
+        self.__initial_closure = self.__initial_closure_LR1
+        c_pool, s_trans = self.__construct_automata()
+        self.__construct_table_LR1(c_pool, s_trans)
+
+        # 计算LALR
+        self.__construct_table_LALR(c_pool, s_trans)
+        # self.__construct_table()
+        # self.closure_dict = {}
+
         # TODO 造出一个完整的自动机的数据结构
+        # LR0, SLR, LR1, LALR
 
     # 计算rules_对应的closure
-    def cal_items(self, rules_: []):
+    def __cal_items(self, rules_: []):
         if len(rules_) == 0:
             return []
         cur_rules = rules_.copy()
@@ -606,17 +703,16 @@ class automata:
             # 去重，无展望符情况下无用
             rule_dict = {}
             for r in cur_rules:
-                if r.origin not in rule_dict:
-                    rule_dict[r.origin] = r
+                if r.core not in rule_dict:
+                    rule_dict[r.core] = r
                 else:
-                    rule_dict[r.origin] = rule_dict[r.origin].merge(r)
+                    rule_dict[r.core] = rule_dict[r.core].merge(r)
 
             cur_rules = []
             for (key, value) in rule_dict.items():
                 cur_rules.append(value)
             return cur_rules
-        else:
-            pass
+
         change = True
         while change:
             change = False
@@ -636,84 +732,224 @@ class automata:
 
         return cur_rules
 
-    def GOTO(self, c: closure, sym: symbol):
-        pass
+    # 返回由rules_中的项目所生成的closure中的所有项目, rules_中是普通的item
+    # 可用于LR(0)与SLR
+    def __cal_items_LR0(self, rules_: []):
+        if len(rules_) == 0:
+            return []
+        cur_rules = rules_.copy()
+
+        change = True
+        while change:
+            change = False
+            l = len(cur_rules)
+            for idx in range(0, l):
+                s_symbol = cur_rules[idx].successive_symbol()
+                if not s_symbol:
+                    continue
+                new_rule = self.CFG.get_rule(s_symbol)
+
+                new_item = list(map(lambda x: item(0, x.left, x.right), new_rule))
+                add_rule = list(filter(lambda x: x not in cur_rules, new_item))
+                # cur_rules += list(map(lambda x: item(0, x.left, x.right), add_rule))
+                cur_rules += add_rule
+            if len(cur_rules) > l:
+                change = True
+
+        return cur_rules
+
+    # 返回由rules_中的项目所生成的closure中的所有项目, rules_中存放带展望符的item，即item_lookahead
+    # 可用于LR(1)与LALR
+    def __cal_items_LR1(self, rules_: []):
+        if len(rules_) == 0:
+            return []
+        cur_rules = rules_.copy()
+        # 我妥协了，还是得加个if判断
+        if type(rules_[0]) == item_lookahead:
+            change = True
+            while change:
+                change = False
+                l = len(cur_rules)
+                for idx in range(0, l):
+                    # 先获得raw后继符号
+                    s_symbol = cur_rules[idx].successive_symbol()
+                    if not s_symbol:
+                        continue
+                    new_rule = self.CFG.get_rule(s_symbol)
+                    for ii in range(len(cur_rules)):
+                        cur_rules[ii].import_CFG(self.CFG)
+                    look = cur_rules[idx].next_lookahead()
+                    new_item = list(map(lambda x: item_lookahead(0, x.left, x.right, look), new_rule))
+                    add_rule = list(filter(lambda x: x not in cur_rules, new_item))
+                    cur_rules += add_rule
+                if len(cur_rules) > l:
+                    change = True
+            # 去重，无展望符情况下无用
+            rule_dict = {}
+            for r in cur_rules:
+                if r.core not in rule_dict:
+                    rule_dict[r.core] = r
+                else:
+                    rule_dict[r.core] = rule_dict[r.core].merge(r)
+
+            cur_rules = []
+            for (key, value) in rule_dict.items():
+                cur_rules.append(value)
+            return cur_rules
+
+    # 返回采用LR(0)的自动机的初始closure, 里面是item
+    def __initial_closure_LR0(self):
+        initial_rules = self.CFG.get_rule(self.CFG.start)
+        initial_items = list(map(lambda x: item(0, x.left, x.right), initial_rules))
+        map(lambda x: x.import_CFG(self.CFG), initial_items)
+        return closure(0, self.__cal_items_LR0(initial_items))
+
+    # 返回采用LR(1)的自动机的初始closure， 里面是item_lookahead
+    def __initial_closure_LR1(self):
+        initial_rules = self.CFG.get_rule(self.CFG.start)
+        initial_items = list(map(lambda x: item_lookahead(0, x.left, x.right, {end_terminal('$')}), initial_rules))
+        map(lambda x: x.import_CFG(self.CFG), initial_items)
+        return closure(0, self.__cal_items_LR1(initial_items))
 
     # 根据产生式计算自动机
     # 默认使用LR(1)
     def __construct_automata(self):
         # 对状态集的计数
         count = 0
-        initial_rules = self.CFG.get_rule(self.CFG.start)
-        # initial_items = list(map(lambda x: item(0, x.left, x.right), initial_rules))
-        initial_items = list(map(lambda x: item_lookahead(0, x.left, x.right, {end_terminal('$')}), initial_rules))
-        map(lambda x: x.import_CFG(self.CFG), initial_items)
-        i_r_closure = closure(count, self.cal_items(initial_items))
+        # 存放closure之间的转换映射
+        status_trans = {}
+        # 首先获得初始状态
+        # initial_rules = self.CFG.get_rule(self.CFG.start)
+        # # initial_items = list(map(lambda x: item(0, x.left, x.right), initial_rules))
+        # initial_items = list(map(lambda x: item_lookahead(0, x.left, x.right, {end_terminal('$')}), initial_rules))
+        # map(lambda x: x.import_CFG(self.CFG), initial_items)
+        # i_r_closure = closure(count, self.__cal_items(initial_items))
+        i_r_closure = self.__initial_closure()
 
+        # 存放已经遍历到的closure，无序
         closure_pool = set()
+        # 存放在下一个循环将要遍历的状态，有序
         to_explore = [i_r_closure]
+        # 当前循环下正在遍历的状态们，有序
         exploring = []
+
+        # closures与序号
+        # TODO 有很小的几率两个closure的hash值相同，但是用list感觉好麻烦。。。
         status_dict = {count: i_r_closure}
-        reversed_status_dict = {i_r_closure:count}
+        reversed_status_dict = {i_r_closure: count}
 
-
+        # 不断循环直到没有可遍历的状态了
         while len(to_explore) > 0:
             exploring = to_explore.copy()
             to_explore.clear()
             # 对每一个状态（按广度优先搜索顺序）
             for status in exploring:
-                # 对状态中的每一个产生式，找到其后继产生式与对应的输入符号 （同样按顺序）
-                last = status.number
+                # 对状态中的每一个产生式，找到其可行的后继产生式与对应的输入符号 （同样按顺序）
+                # origin_closure: 原状态的序号
+                # s_rule: 状态之间的映射 TODO 同样，有很小的概率，key的hash值相同
+                origin_closure = status.number
                 s_rule = {}
                 for r in status.items:
+                    if not r.has_successive:
+                        continue
                     s_item = r.successive_item()
                     s_symbol = r.successive_symbol()
-                    if not s_item:
-                        continue
                     if s_symbol in s_rule:
                         s_rule[s_symbol].append(s_item)
                     else:
                         s_rule[s_symbol] = [s_item]
 
+                # 对每个可行的移进
                 for (key, value) in s_rule.items():
-                    temp_closure = closure(count + 1, self.cal_items(value))
+                    # 求出由该移进的项目生成的closure
+                    temp_closure = closure(count + 1, self.__cal_items(value))
                     # 如果是已经建立过的状态
                     if temp_closure in closure_pool or temp_closure in exploring or temp_closure in to_explore:
                         temp_number = reversed_status_dict[temp_closure]
-                        if last in self.to_dict:
-                            self.to_dict[last].append((key, temp_number))
+                        if origin_closure in status_trans:
+                            status_trans[origin_closure].append((key, temp_number))
                         else:
-                            self.to_dict[last] = [(key, temp_number)]
+                            status_trans[origin_closure] = [(key, temp_number)]
                         continue
+                    # 如果是为建立的状态
                     count = count + 1
                     to_explore.append(temp_closure)
-                    if last in self.to_dict:
-                        self.to_dict[last].append((key, count))
+                    if origin_closure in status_trans:
+                        status_trans[origin_closure].append((key, count))
                     else:
-                        self.to_dict[last] = [(key, count)]
+                        status_trans[origin_closure] = [(key, count)]
                     status_dict[count] = temp_closure
                     reversed_status_dict[temp_closure] = count
             for v in exploring:
                 closure_pool.add(v)
-        self.closures = closure_pool
 
-        self.closure_count = 0
+        return closure_pool, status_trans
+
+    # 为LALR设计。将closure_pool中核心相同的项集合并，返回合并后的项目集与转移映射
+    def __merge_closures(self, closure_pool, status_trans: {}):
+        closure_core = {}
+        closure_d = {}
+        equivalent_sets = {}
         for c in closure_pool:
-            self.closure_count += 1
-            self.closure_dict[c.number] = c
+            closure_d[c.number] = c
+            l = list(c.core)
+            l.sort()
+            l_tuple = tuple(l)
+            if l_tuple in equivalent_sets:
+                equivalent_sets[l_tuple].append(c.number)
+            else:
+                equivalent_sets[l_tuple] = [c.number]
+
+        new_pool = set()
+        new_trans = {}
+        olocount = len(equivalent_sets)
+        # 建立从旧项目集到新项目集的对应关系
+        old2ind = {}
+        old2new = {}
+        new_list = []
+        for (key, value) in equivalent_sets.items():
+            n = min(value)
+            new_list.append(n)
+            for v in value:
+                old2ind[v] = n
+        new_list.sort()
+        for idx in range(len(new_list)):
+            old2new[new_list[idx]] = idx
+
+        for (key, value) in equivalent_sets.items():
+            elem = value[0]
+            indicate = old2new[old2ind[elem]]
+            c = closure_d[elem]
+            for cc in value[1:]:
+                c = c.closure_merge(closure_d[cc])
+            c.number = indicate
+            new_pool.add(c)
+
+        for (key, value) in status_trans.items():
+            for o in value:
+                src = old2new[old2ind[key]]
+                tar = old2new[old2ind[o[1]]]
+                symb = o[0]
+                if src in new_trans:
+                    new_trans[src].append((symb, tar))
+                else:
+                    new_trans[src] = [(symb, tar)]
+        return new_pool, new_trans
 
     # 根据自动机生成分析表
     # 默认根据LR(1)生成
     def __construct_table(self):
         # *** item_lookahead only ***
         self.table = {'ACTION':{}, 'GO':{}}
+        terminal_list = list(self.CFG.terminals) + [end_terminal('$')]
+        n_terminal_list = list(self.CFG.n_terminals)
         # 初始化
         for idx in range(0, self.closure_count + 1):
             self.table['GO'][idx] = {}
             self.table['ACTION'][idx] = {}
-            for n in self.CFG.n_terminals:
+            for n in n_terminal_list:
                 self.table['GO'][idx][n] = []
-            for t in self.CFG.terminals + [end_terminal('$')]:
+            for t in terminal_list:
                 if not isinstance(t, empty_terminal):
                     self.table['ACTION'][idx][t] = []
         # 填充移进
@@ -730,43 +966,165 @@ class automata:
                     for follows in i.lookahead:
                         self.table['ACTION'][key][follows].append(('r', self.CFG.rule_number[i.to_rule()]))
 
+    def __construct_table_LR0(self, closure_pool, status_trans: {}):
+        closure_count = len(closure_pool)
+        closure_dict = {}
+        for k in closure_pool:
+            closure_dict[k.number] = k
+        table = {'ACTION': {}, 'GO': {}}
+        terminal_list = list(self.CFG.terminals) + [end_terminal('$')]
+        n_terminal_list = list(self.CFG.n_terminals)
+        # 初始化
+        for idx in range(0, closure_count + 1):
+            table['GO'][idx] = {}
+            table['ACTION'][idx] = {}
+            for n in n_terminal_list:
+                table['GO'][idx][n] = []
+            for t in terminal_list:
+                if not isinstance(t, empty_terminal):
+                    table['ACTION'][idx][t] = []
+        # 填充移进
+        for (key, value) in status_trans.items():
+            for targets in value:
+                if isinstance(targets[0], n_terminal):
+                    table['GO'][key][targets[0]].append(('s', targets[1]))
+                elif isinstance(targets[0], terminal):
+                    table['ACTION'][key][targets[0]].append(('s', targets[1]))
+        # 填充归约
+        for (key, value) in closure_dict.items():
+            for i in value.items:
+                if i.reduce:
+                    for follows in terminal_list:
+                        table['ACTION'][key][follows].append(('r', self.CFG.rule_number[i.to_rule()]))
+
+        self.closures_LR0 = closure_dict
+        self.trans_LR0 = status_trans
+        self.table_LR0 = ParsingTable(table, terminal_list, n_terminal_list)
+
+    def __construct_table_SLR(self, closure_pool, status_trans: {}):
+        closure_count = len(closure_pool)
+        closure_dict = {}
+        for k in closure_pool:
+            closure_dict[k.number] = k
+        table = {'ACTION': {}, 'GO': {}}
+        terminal_list = list(self.CFG.terminals) + [end_terminal('$')]
+        n_terminal_list = list(self.CFG.n_terminals)
+        # 初始化
+        for idx in range(0, closure_count + 1):
+            table['GO'][idx] = {}
+            table['ACTION'][idx] = {}
+            for n in n_terminal_list:
+                table['GO'][idx][n] = []
+            for t in terminal_list:
+                if not isinstance(t, empty_terminal):
+                    table['ACTION'][idx][t] = []
+        # 填充移进
+        for (key, value) in status_trans.items():
+            for targets in value:
+                if isinstance(targets[0], n_terminal):
+                    table['GO'][key][targets[0]].append(('s', targets[1]))
+                elif isinstance(targets[0], terminal):
+                    table['ACTION'][key][targets[0]].append(('s', targets[1]))
+        # 填充归约
+        for (key, value) in closure_dict.items():
+            for i in value.items:
+                if i.reduce:
+                    for follows in self.CFG.FOLLOW[i.left]:
+                        table['ACTION'][key][follows].append(('r', self.CFG.rule_number[i.to_rule()]))
+
+        self.closures_SLR = closure_dict
+        self.trans_SLR = status_trans
+        self.table_SLR = ParsingTable(table, terminal_list, n_terminal_list)
+
+    def __construct_table_LR1(self, closure_pool, status_trans: {}):
+        closure_count = len(closure_pool)
+        closure_dict = {}
+        for k in closure_pool:
+            closure_dict[k.number] = k
+        table = {'ACTION': {}, 'GO': {}}
+        terminal_list = list(self.CFG.terminals) + [end_terminal('$')]
+        n_terminal_list = list(self.CFG.n_terminals)
+        # 初始化
+        for idx in range(0, closure_count + 1):
+            table['GO'][idx] = {}
+            table['ACTION'][idx] = {}
+            for n in n_terminal_list:
+                table['GO'][idx][n] = []
+            for t in terminal_list:
+                if not isinstance(t, empty_terminal):
+                    table['ACTION'][idx][t] = []
+        # 填充移进
+        for (key, value) in status_trans.items():
+            for targets in value:
+                if isinstance(targets[0], n_terminal):
+                    table['GO'][key][targets[0]].append(('s', targets[1]))
+                elif isinstance(targets[0], terminal):
+                    table['ACTION'][key][targets[0]].append(('s', targets[1]))
+        # 填充归约
+        for (key, value) in closure_dict.items():
+            for i in value.items:
+                if i.reduce:
+                    for follows in i.lookahead:
+                        table['ACTION'][key][follows].append(('r', self.CFG.rule_number[i.to_rule()]))
+
+        self.closures_LR1 = closure_dict
+        self.trans_LR1 = status_trans
+        self.table_LR1 = ParsingTable(table, terminal_list, n_terminal_list)
+
+    def __construct_table_LALR(self, closure_pool, status_trans: {}):
+        closure_pool, status_trans = self.__merge_closures(closure_pool, status_trans)
+        closure_count = len(closure_pool)
+        closure_dict = {}
+        for k in closure_pool:
+            closure_dict[k.number] = k
+        table = {'ACTION': {}, 'GO': {}}
+        terminal_list = list(self.CFG.terminals) + [end_terminal('$')]
+        n_terminal_list = list(self.CFG.n_terminals)
+        # 初始化
+        for idx in range(0, closure_count + 1):
+            table['GO'][idx] = {}
+            table['ACTION'][idx] = {}
+            for n in n_terminal_list:
+                table['GO'][idx][n] = []
+            for t in terminal_list:
+                if not isinstance(t, empty_terminal):
+                    table['ACTION'][idx][t] = []
+        # 填充移进
+        for (key, value) in status_trans.items():
+            for targets in value:
+                if isinstance(targets[0], n_terminal):
+                    table['GO'][key][targets[0]].append(('s', targets[1]))
+                elif isinstance(targets[0], terminal):
+                    table['ACTION'][key][targets[0]].append(('s', targets[1]))
+        # 填充归约
+        for (key, value) in closure_dict.items():
+            for i in value.items:
+                if i.reduce:
+                    for follows in i.lookahead:
+                        table['ACTION'][key][follows].append(('r', self.CFG.rule_number[i.to_rule()]))
+
+        self.closures_LALR = closure_dict
+        self.trans_LALR = status_trans
+        self.table_LALR = ParsingTable(table, terminal_list, n_terminal_list)
+
+    def __string(self, name, closures, trans, table):
+        string = name + '\n'
+        for (key, value) in closures.items():
+            string += str(value) + '\n'
+        string += '\n'
+        for (key, value) in trans.items():
+            string += str(key) + ' - ' + str(value) + '\n'
+        string += '\n' + str(table) + '\n\n'
+        return string
+
+
 
     def __repr__(self):
-        c = list(self.closures)
-        c.sort()
-        tablestr = ''
-        tablestr += '\nACTION\n\t'
-        for n in self.CFG.terminals + [end_terminal('$')]:
-            if isinstance(n, empty_terminal):
-                continue
-            tablestr += str(n) + '\t'
-        tablestr += '\n'
-        # 每一行
-        for i in range(self.closure_count + 1):
-            tablestr += '\n' + str(i) + '\t'
-            for (key1, value1) in self.table['ACTION'][i].items():
-                if len(value1) == 0:
-                    tablestr += '[]\t'
-                    continue
-                # for k in value1:
-                #     tablestr += k[0] + str(k[1]) + '\t'
-                tablestr += ','.join(list(map(lambda x: x[0] + str(x[1]), value1)))
-                tablestr += '\t'
-        tablestr += '\nGO\n'
-        for t in self.CFG.n_terminals:
-            tablestr += str(t) + '\t'
-        tablestr += '\n'
-        # 每一行
-        for i in range(self.closure_count):
-            tablestr += '\n' + str(i) + '\t'
-            for (key1, value1) in self.table['GO'][i].items():
-                if len(value1) == 0:
-                    tablestr += '[]\t'
-                    continue
-                for k in value1:
-                    tablestr += k[0] + str(k[1]) + '\t'
-                tablestr += '\t'
-        return str(self.to_dict) + '\n' + '\n'.join(list(map(str, c))) + '\n' + tablestr
+        return self.__string('LR0', self.closures_LR0, self.trans_LR0, self.table_LR0) \
+                 + self.__string('SLR', self.closures_SLR, self.trans_SLR, self.table_SLR) \
+                 + self.__string('LR1', self.closures_LR1, self.trans_LR1, self.table_LR1) \
+                 + self.__string('LALR', self.closures_LALR, self.trans_LALR, self.table_LALR)
+
 
     def __eq__(self, other):
         return self.CFG == other.CFG
@@ -774,9 +1132,15 @@ class automata:
     def __hash__(self):
         return hash(self.CFG)
 
+    def __str__(self):
+        return self.__string('LR0', self.closures_LR0, self.trans_LR0, self.table_LR0) \
+                 + self.__string('SLR', self.closures_SLR, self.trans_SLR, self.table_SLR) \
+                 + self.__string('LR1', self.closures_LR1, self.trans_LR1, self.table_LR1) \
+                 + self.__string('LALR', self.closures_LALR, self.trans_LALR, self.table_LALR)
+
 
 class LR_analyzer:
-    def __init__(self, pda:automata):
+    def __init__(self, pda:Automata):
         self.PDA = pda
 
     def analyze_str(self, input: str):
@@ -982,7 +1346,7 @@ if __name__ == '__main__':
     # print(c.FIRST)
     # print(c.FOLLOW)
     # print(c.SELECT)
-    pda = automata(c)
+    pda = Automata(c)
     print(pda)
     # parse = LR_analyzer(pda)
     # parse.analyze_str('( entity ( entity | entity | entity ) entity entity * ) | entity')
