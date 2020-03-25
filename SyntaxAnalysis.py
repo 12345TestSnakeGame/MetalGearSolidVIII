@@ -1005,13 +1005,33 @@ class Automata:
         return self.__repr__()
 
 
-class LR_analyzer:
-    def __init__(self, pda:Automata):
-        self.PDA = pda
+class Parser:
+    def __init__(self, lang: cfg):
+        self.CFG = lang
 
-    def analyze_str(self, input: str):
-        symseq = self.__get_symbolSequence(input)
-        reduce_record = list(map(lambda x:{x:None}, symseq))
+    def parse(self, text: str):
+        pass
+
+    def __get_symbolSequence(self, s: str):
+        if len(s) == 0:
+            return None
+        elif s[-1] == '\n':
+            s = s[:-1]
+        symseq = []
+        for c in s.split(' '):
+            symseq.append(self.CFG.namelist[c])
+        symseq.append(end_terminal('$'))
+        return symseq
+
+
+class LR_Parser(Parser):
+    def __init__(self, lang: cfg):
+        super().__init__(lang)
+        self.PDA = Automata(lang)
+
+    def parse(self, text: str):
+        symseq = self.__get_symbolSequence(text)
+        reduce_record = list(map(lambda x: {x: None}, symseq))
         symseq.reverse()
 
         # 让栈提前于symbol而变化
@@ -1075,20 +1095,7 @@ class LR_analyzer:
 
         raise Exception
 
-
-    def __get_symbolSequence(self, s: str):
-        if len(s) == 0:
-            return None
-        elif s[-1] == '\n':
-            s = s[:-1]
-        symseq = []
-        for c in s.split(' '):
-            symseq.append(self.PDA.CFG.namelist[c])
-        # symseq.insert(0, end_terminal('$'))
-        symseq.append(end_terminal('$'))
-        return symseq
-
-    def visulize_tree(self):
+    def visualize_tree(self):
         dot = Digraph(comment='parsing tree')
 
         # 父根节点
@@ -1119,8 +1126,56 @@ class LR_analyzer:
                 self.__treenode(dot, name, nodes, count)
 
 
-class LL_analyzer:
-    pass
+# 默认输入的语言是LL(k)的
+class LL_Parser(Parser):
+    def __init__(self, lang: cfg):
+        super().__init__(lang)
+        self.__generate_table()
+
+    # 生成LL(1)文法的预测分析表
+    def __generate_table(self):
+        self.table = {}
+        term = [self.CFG.terminals] + [end_terminal('$')]
+        if empty_terminal('empty') in term:
+            term.remove(empty_terminal('empty'))
+
+        # 初始化
+        for nt in self.CFG.n_terminals:
+            self.table[nt] = {}
+            for t in term:
+                self.table[nt][t] = None
+
+        # 填充产生式
+        for it in self.CFG.rules:
+            l = it.left
+            for symb in self.CFG.SELECT[it]:
+                self.table[l][symb] = it
+
+    def parse(self, text: str):
+        # 有两个栈，一个是输入符号栈，另一个是文法符号栈
+        symbol_stack = self.__get_symbolSequence(text)
+        reduce_statck = [end_terminal('$'), self.CFG.start]
+
+        r = reduce_statck[-1]
+        pointer = symbol_stack[-1]
+        while not isinstance(r, end_terminal):
+            if r == pointer:
+                symbol_stack.pop()
+                pointer = symbol_stack[-1]
+                reduce_statck.pop()
+            elif isinstance(r, terminal):
+                raise Exception('产生式与符号串匹配错误')
+            elif not self.table[r][pointer]:
+                raise Exception('预测分析表中遇到报错条目')
+            else:
+                reduce_statck.pop()
+                match_rule = self.table[r][pointer]
+                reversed_right = match_rule.right
+                reversed_right.reverse()
+                print(match_rule)
+                reduce_statck += reversed_right
+            r = reduce_statck[-1]
+
 
 # 从文件读取
 def cfg_readfile(filename: str):
@@ -1178,6 +1233,7 @@ if __name__ == '__main__':
     # SELECT = select(start, n_terminals, terminals, rules, FIRST, FOLLOW)
     # print(SELECT)
     c = cfg_readfile('cfg_regex.txt')
+    # TODO 有bug，cfg_regex跑出来不是LALR的，却可以是SLR的。肯定哪里出错了
     # print(c.FIRST)
     # print(c.FOLLOW)
     # print(c.SELECT)
