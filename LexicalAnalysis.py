@@ -170,20 +170,100 @@ class e_NFA(FA):
     def __init__(self):
         super().__init__()
         self.fa_node = FA_Node()
+        # 默认的正则表达式内置符号。如果有冲突，需要在前面加一个斜杠
+        self.regex_built_in = {'(', ')', '|', '*'}
+        self.terminals = {}
+        self.non_terminals = {}
+        self.reg_ex = {}
+        self.phrases = {}
+        # 从文件中读取正则表达式的构造规则(cfg)，得到LR分析器，用于分析每一条正则表达式的句法结构
+        self.lr = LR_Parser(cfg_readfile('cfg_regex.txt'))
 
-    # 自己的补全
+    # 从文件中读取正则文法，然后构造自动机与转换表
     def compile_regex(self, filename: str):
-        pass
+        # 正则文法的规则：
+        # 第一行：所有的非终结符
+        # 第二行：所有的终结符
+        # 剩余行：所有的正则文法
+        #   在后的正则文法会覆盖前面的正则文法，解决了关键字的问题（没有采用表的方法）
+        #   右部中出现的非终结符必须在前面的行出现过
+        #   由'#'开头的所有行都会忽略掉，作为注释
+        f = open(filename, 'r', encoding='utf-8')
+        s = f.readlines()
+        f.close()
+
+        lines = []
+        for l in s:
+            if len(s) <= 1:
+                continue
+            elif s[0] == '#':
+                continue
+            if s[-1] == '\n':
+                s = s[:-1]
+            lines.append(s)
+
+        # non terminals
+        Nts = lines[0].split(',')
+        for n in Nts:
+            self.non_terminals[n] = n_terminal(n)
+        # terminals
+        Ts = lines[1].split(',')
+        for t in Ts:
+            self.terminals[t] = terminal(t)
+        # regular expressions
+        for line in lines[2:]:
+            chars = line.split(' ')
+            var = self.non_terminals[chars[0]]
+            expression = []
+            for elements in chars[2:]:
+                if elements in self.regex_built_in:
+                    continue
+                elif elements in self.non_terminals:
+                    expression.append(self.non_terminals[elements])
+                elif elements in self.terminals:
+                    expression.append(self.terminals[elements])
+                else:
+                    raise Exception('e_NFA:正则表达式读取错误!')
+            self.reg_ex[var] = expression
+
+        # 开始构建自动机
+        eNFA = {}
+        idx = 2
+        for (key, value) in self.reg_ex.items():
+            analyze_str = lines[idx].split(',')
+            a = []
+            for symb in analyze_str:
+                if symb in self.regex_built_in:
+                    a.append(symb)
+                else:
+                    a.append('entity')
+            string = ' '.join(a)
+            self.lr.parse(string)
+            tree = self.lr.tree
+            entities = value.copy()
+            entities.reverse()
+
+            phrase = self.__traverse_compile(tree, entities)
+            self.phrases[key] = phrase
+
+        # 子集构造法生成转换表
+        # 实际上将正则表达式转换为自动机，通用的方法是直接转换为epsilon-NFA，然后直接子集构造法转换为DFA
+        # 因此，另外两个FA的类其实就没有用了
+
+
+
+
+
+
 
     # 通过遍历整棵语法树的方法来生成自动机
-    def traverse_compile(self, tree: {}):
+    def __traverse_compile(self, tree: {}, entities: []):
         # 通过前序遍历构建自动机
-        initial_phrase = self.__recursive_traverse(tree)
-        print('finished')
-
+        initial_phrase = self.__recursive_traverse(tree, entities)
+        return initial_phrase
 
     # 根据treenode构造phrase
-    def __recursive_traverse(self, tree_node: {}):
+    def __recursive_traverse(self, tree_node: {}, entities: []):
         for (key, value) in tree_node.items():
             # 在这里根据value考虑下一步
             # 与产生式直接相关
@@ -222,7 +302,9 @@ class e_NFA(FA):
             # A - entity
             elif len(sons) == 1 and isinstance(sons[0], terminal):
                 current_phrase = Phrase(self.fa_node)
-                current_phrase.character('e')
+                real_entity = entities.pop()
+                assert len(real_entity.s) == 1
+                current_phrase.character(real_entity.s)
                 return current_phrase
             else:
                 raise Exception('e_NFA:遍历树过程中未知产生式!')
@@ -244,9 +326,10 @@ class e_NFA(FA):
 
 
 if __name__ == '__main__':
-    c = cfg_readfile('cfg_regex.txt')
-    lr = LR_Parser(c)
-    lr.parse('( entity ( entity | entity | entity ) entity entity * ) | entity')
-    LR_tree = lr.tree
-    enfa = e_NFA()
-    enfa.traverse_compile(LR_tree)
+    # c = cfg_readfile('cfg_regex.txt')
+    # lr = LR_Parser(c)
+    # lr.parse('( ( ( entity ( entity | entity | entity ) entity entity * ) | entity ) entity ) | entity entity *')
+    # LR_tree = lr.tree
+    # enfa = e_NFA()
+    # enfa.traverse_compile(LR_tree)
+    pass
