@@ -72,10 +72,12 @@ class _node:
 
 
 class Phrase:
-    def __init__(self, Nodes: FA_Node, pre_phrase):
+    def __init__(self, Nodes: FA_Node):
         self.start = Nodes.generate()
         self.end = Nodes.generate()
-        pre_phrase.end.add_node(Edge('empty'), self.start)
+
+    def connect(self, post_phrase):
+        self.end.add_node(Edge('empty'), post_phrase.start)
 
     def concatenate(self, pre, post):
         self.start.add_node(Edge('empty'), pre.start)
@@ -93,6 +95,15 @@ class Phrase:
         self.start.add_node(Edge('empty'), p2.start)
         p1.end.add_node(Edge('empty'), self.end)
         p2.end.add_node(Edge('empty'), self.end)
+
+    def character(self, ch: str):
+        self.start.add_node(Edge(ch), self.end)
+
+    def __repr__(self):
+        return '==' + str(self.start) + '-' + str(self.end) + '=='
+
+    def __str__(self):
+        return self.__repr__()
 
 
 # 基本的finite automata
@@ -158,14 +169,63 @@ class NFA(FA):
 class e_NFA(FA):
     def __init__(self):
         super().__init__()
+        self.fa_node = FA_Node()
 
     # 自己的补全
     def compile_regex(self, filename: str):
         pass
 
     # 通过遍历整棵语法树的方法来生成自动机
-    def __traverse_compile(self):
-        pass
+    def traverse_compile(self, tree: {}):
+        # 通过前序遍历构建自动机
+        initial_phrase = self.__recursive_traverse(tree)
+        print('finished')
+
+
+    # 根据treenode构造phrase
+    def __recursive_traverse(self, tree_node: {}):
+        for (key, value) in tree_node.items():
+            # 在这里根据value考虑下一步
+            # 与产生式直接相关
+            sons = []
+            for d in value:
+                for (key1, value1) in d.items():
+                    sons.append(key1)
+            # R' - R
+            # B - A
+            # R - B
+            if len(sons) == 1 and isinstance(sons[0], n_terminal):
+                return self.__recursive_traverse(value[0])
+            # R - B | R
+            elif len(sons) == 3 and sons[1].s == '|':
+                current_phrase = Phrase(self.fa_node)
+                p1 = self.__recursive_traverse(value[0])
+                p2 = self.__recursive_traverse(value[2])
+                current_phrase.branch(p1, p2)
+                return current_phrase
+            # B - A B
+            elif len(sons) == 2 and sons[1].s != '*':
+                current_phrase = Phrase(self.fa_node)
+                pre = self.__recursive_traverse(value[0])
+                post = self.__recursive_traverse(value[1])
+                current_phrase.concatenate(pre, post)
+                return current_phrase
+            # A - A *
+            elif len(sons) == 2 and sons[1].s == '*':
+                current_phrase = Phrase(self.fa_node)
+                star_phrase = self.__recursive_traverse(value[0])
+                current_phrase.star(star_phrase)
+                return current_phrase
+            # A - ( R )
+            elif len(sons) == 3 and sons[0].s == '(':
+                return self.__recursive_traverse(value[1])
+            # A - entity
+            elif len(sons) == 1 and isinstance(sons[0], terminal):
+                current_phrase = Phrase(self.fa_node)
+                current_phrase.character('e')
+                return current_phrase
+            else:
+                raise Exception('e_NFA:遍历树过程中未知产生式!')
 
     # TODO 通过设计SDT来在parsing时生成自动机
     def __SDT_compile(self):
@@ -184,4 +244,9 @@ class e_NFA(FA):
 
 
 if __name__ == '__main__':
-    pass
+    c = cfg_readfile('cfg_regex.txt')
+    lr = LR_Parser(c)
+    lr.parse('( entity ( entity | entity | entity ) entity entity * ) | entity')
+    LR_tree = lr.tree
+    enfa = e_NFA()
+    enfa.traverse_compile(LR_tree)
