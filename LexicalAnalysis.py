@@ -6,12 +6,13 @@ from graphviz import Digraph
 # 产生node，并分配序号
 # 可以生出一堆小node
 class FA_Node:
-    def __init__(self):
+    def __init__(self, number: int):
+        self.number = number
         self.count = 0
         self.nodes = {}
 
     def generate(self):
-        new_node = _node(self.count)
+        new_node = _node(self.number, self.count)
         self.nodes[self.count] = new_node
         self.count += 1
         return new_node
@@ -23,7 +24,7 @@ class FA_Node:
         return self.__repr__()
 
     def __hash__(self):
-        return self.count
+        return self.count + self.number
 
 
 # 只允许单字符，以及empty
@@ -48,7 +49,8 @@ class Edge:
 
 
 class _node:
-    def __init__(self, number: int):
+    def __init__(self, order: int, number: int):
+        self.order = order
         self.number = number
         self.next = {}
 
@@ -59,16 +61,40 @@ class _node:
             self.next[symbol] = [other_node]
 
     def __repr__(self):
-        return '-node_' + str(self.number) + '-'
+        return '-node_' + str(self.order) + '-' +  str(self.number) + '-'
 
     def __str(self):
         return self.__repr__()
 
     def __eq__(self, other):
-        return other.number == self.number
+        return other.number == self.number and self.order == other.order
 
     def __hash__(self):
-        return self.number
+        return self.number + (self.order + 11221234)*123
+
+    def __lt__(self, other):
+        if self.order == other.order:
+            return self.number < other.number
+        else:
+            return self.order < other.order
+
+    def __le__(self, other):
+        if self.order == other.order:
+            return self.number <= other.number
+        else:
+            return self.order <= other.order
+
+    def __gt__(self, other):
+        if self.order == other.order:
+            return self.number > other.number
+        else:
+            return self.order > other.order
+
+    def __ge__(self, other):
+        if self.order == other.order:
+            return self.number >= other.number
+        else:
+            return self.order >= other.order
 
 
 class Phrase:
@@ -169,7 +195,7 @@ class NFA(FA):
 class e_NFA(FA):
     def __init__(self):
         super().__init__()
-        self.fa_node = FA_Node()
+        self.fa_node = FA_Node(0)
         # 默认的正则表达式内置符号。如果有冲突，需要在前面加一个斜杠
         self.regex_built_in = {'(', ')', '|', '*'}
         self.terminals = {}
@@ -252,8 +278,72 @@ class e_NFA(FA):
         self.__subset_construct()
 
     def __subset_construct(self):
-        pass
+        start_node = self.fa_node.generate()
+        end_nodes = {}
+        # 用一个结点与所有开始状态连接，并记录所有结束状态
+        for (key, value) in self.phrases.items():
+            start_node.add_node(Edge('empty'), value.start)
+            end_nodes[key] = value.end
+        # 类似于广度优先搜索
+        to_explore = set()
+        explored = set()
+        exploring = set(self.eclosure(start_node))
+        fa_table = {}
+        end_status = set()
+        while len(exploring) != 0:
+            # 对每个状态子集
+            for s in exploring:
+                # 对状态子集中的每个状态
+                # 所有状态的所有可达状态
+                switch_table = {}
+                for k in s:
+                    for (key, value) in k.items():
+                        if key in switch_table:
+                            switch_table[key] = switch_table[key].union(set(value))
+                        else:
+                            switch_table[key] = set(value)
 
+                # closure补全
+                for (key, value) in switch_table.items():
+                    closure_subset = set()
+                    for incomplete_set in value:
+                        closure_subset = closure_subset.union(self.eclosure(incomplete_set))
+                    switch_table[key] = closure_subset
+
+                # 将新触及的状态子集填写进转换表
+                for (key, value) in switch_table.items():
+                    # 未探索过的状态加入探索集合
+                    if value not in explored and value not in exploring:
+                        to_explore.add(value)
+                    origin = [s]
+                    origin.sort()
+                    origin = tuple(origin)
+                    if origin in fa_table:
+                        fa_table[origin][key] = value
+                    else:
+                        fa_table[origin] = {key: value}
+                explored.add(s)
+            exploring = to_explore.copy()
+            to_explore.clear()
+
+
+
+    def eclosure(self, _node):
+        empty_edge = Edge('empty')
+        # 广度优先搜索
+        explored = {_node}
+        exploring = {_node}
+        to_explore = set()
+        while len(exploring) != 0:
+            for n in exploring:
+                if empty_edge in n.next:
+                    for k in n.next[empty_edge]:
+                        to_explore.add(k)
+            for k in exploring:
+                explored.add(k)
+            exploring = to_explore.copy()
+            to_explore.clear()
+        return explored
 
     # 通过遍历整棵语法树的方法来生成自动机
     def __traverse_compile(self, tree: {}, entities: []):
