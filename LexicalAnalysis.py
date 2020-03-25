@@ -249,11 +249,10 @@ class e_NFA(FA):
         # 子集构造法生成转换表
         # 实际上将正则表达式转换为自动机，通用的方法是直接转换为epsilon-NFA，然后直接子集构造法转换为DFA
         # 因此，另外两个FA的类其实就没有用了
+        self.__subset_construct()
 
-
-
-
-
+    def __subset_construct(self):
+        pass
 
 
     # 通过遍历整棵语法树的方法来生成自动机
