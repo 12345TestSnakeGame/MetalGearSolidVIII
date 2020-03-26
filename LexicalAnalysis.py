@@ -130,6 +130,7 @@ class Phrase:
         p2.end.add_node(Edge('empty'), self.end)
 
     def character(self, ch: str):
+        # assert len(ch) == 1 # 别这么缺德啊
         self.start.add_node(Edge(ch), self.end)
 
     def insert(self, phrase):
@@ -241,14 +242,18 @@ class e_NFA(FA):
         self.fa_node = FA_Node(0)
         # 默认的正则表达式内置符号。如果有冲突，需要在前面加一个斜杠
         self.__regex_built_in = {'(', ')', '|', '*'}
+        self.__stop_symbol = {'\t', '\n', ' '}
         self.terminals = {}
         self.non_terminals = {}
         # 记录变量出现的顺序
         self.__variable = []
         self.__reg_ex = {}
         self.phrases = {}
+        # 不可作为接受状态的变元
+        self.__non_acc = set()
         # 从文件中读取正则表达式的构造规则(cfg)，得到LR分析器，用于分析每一条正则表达式的句法结构
         self.__lr = LR_Parser(cfg_readfile('cfg_regex.txt'))
+        self.__table = {}
         self.table = {}
         self.end = {}
 
@@ -262,6 +267,7 @@ class e_NFA(FA):
         #   在后的正则文法会覆盖前面的正则文法，解决了关键字的问题（没有采用表的方法）
         #   右部中出现的非终结符必须在前面的行出现过
         #   由'#'开头的所有行都会忽略掉，作为注释
+        #   由'^'开头的行，其符号只作为变元存在，而不能作为接收状态
         f = open(filename, 'r', encoding='utf-8')
         s = f.readlines()
         f.close()
@@ -286,8 +292,15 @@ class e_NFA(FA):
             self.terminals[t] = terminal(t)
         # regular expressions
         for line in lines[2:]:
-            chars = line.split(' ')
-            var = self.non_terminals[chars[0]]
+            if line[0] == '^':
+                line = line[1:]
+                chars = line.split(' ')
+                var = self.non_terminals[chars[0]]
+                self.__non_acc.add(var)
+            else:
+                chars = line.split(' ')
+                var = self.non_terminals[chars[0]]
+
             self.__variable.append(var)
             expression = []
             for elements in chars[2:]:
@@ -357,6 +370,8 @@ class e_NFA(FA):
                 temptemp = tuple(temp)
                 new_table[reverse_status[key]][key1] = reverse_status[temptemp]
         for nt in self.__variable:
+            if nt in self.__non_acc:
+                continue
             cur_end = endings[nt]
             for (key, value) in new_table.items():
                 original_set = set(status[key])
@@ -364,7 +379,11 @@ class e_NFA(FA):
                     end_status[key] = nt
         print(new_table)
         print(end_status)
-        self.table = new_table
+        self.__table = new_table
+        for (key, value) in self.__table.items():
+            self.table[key] = {}
+            for (key1, value1) in value.items():
+                self.table[key][key1.symbol] = value1
         self.end = end_status
 
     # 子集构造法
@@ -491,12 +510,12 @@ class e_NFA(FA):
     # 可视化产生的DFA
     def visualize_DFA(self):
         d = Digraph(comment='DFA')
-        for (key, value) in self.table.items():
+        for (key, value) in self.__table.items():
             if key in self.end:
                 d.node(str(key), str(key) + '-' + str(self.end[key]), color='red')
             else:
                 d.node(str(key), str(key))
-        for (key, value) in self.table.items():
+        for (key, value) in self.__table.items():
             for (key1, value1) in value.items():
                 d.edge(str(key), str(value1), str(key1))
         d.view()
@@ -564,6 +583,66 @@ class e_NFA(FA):
         f = open(input_filename, 'r', encoding='utf-8')
         content = f.read()
         f.close()
+        content = list(content)
+        content.reverse()
+
+        # 存放词法分析的结果
+        lexical_result = []
+        backup_status = 0
+        current_status = 0
+        backup_stack = []
+        while len(content) != 0:
+            ch = content.pop()
+
+            # 先判断是否是停用词
+            if ch in self.__stop_symbol:
+                if current_status not in self.end:
+                    raise Exception('LexicalAnalyzer:文法错误!')
+                else:
+                    lexical_result.append(self.end[current_status])
+                    current_status = 0
+            else:
+                # 如果当前状态是一个终结状态，那么当前状态是一个潜在的成功识别符号
+                if current_status in self.end:
+                    # 如果有可行路径，走
+                    if ch in self.table[current_status]:
+                        # 当前路径是一个可行符号，先记录下来
+                        backup_status = current_status
+                        backup_stack.clear()
+                        # 哨兵继续探索下一个状态
+                        current_status = self.table[current_status][ch]
+                        backup_stack.insert(0, ch)
+                    # 无路可走了
+                    else:
+                        # 试着接收
+                        lexical_result.append(self.end[current_status])
+                        current_status = 0
+                        backup_stack.clear()
+                        backup_status = 0
+                        # 符号再压回去
+                        content.append(ch)
+                # 如果当前状态不是终结状态，继续向前探索，备份好输入
+                else:
+                    # 如果无路可走了
+                    if ch not in self.table[current_status]:
+                        # 如果从初始状态到当前状态还没有碰到过可接受状态
+                        if backup_status == 0:
+                            raise Exception
+                        # 如果碰到过的话，回滚
+                        else:
+                            lexical_result.append(self.end[backup_status])
+                            content += backup_stack
+                            current_status = 0
+                            backup_stack = []
+                            backup_status = 0
+                    # 如果有路可走
+                    else:
+                        # 那就走呗
+                        backup_stack.insert(0, ch)
+                        current_status = self.table[current_status][ch]
+        print(' '.join(list(map(str, lexical_result))))
+
+
 
 
 
@@ -574,6 +653,8 @@ if __name__ == '__main__':
     # lr.parse('( ( ( entity ( entity | entity | entity ) entity entity * ) | entity ) entity ) | entity entity *')
     # LR_tree = lr.tree
     enfa = e_NFA()
-    enfa.compile_regex('testCases/regex/regex_3.txt')
-    enfa.visualize_DFA()
+    enfa.compile_regex('testCases/regex/regex_5.txt')
+    # enfa.visualize_DFA()
+    enfa.lexical_analyse('testCases/lexical/lexical_1.txt', 'code_C_result.txt')
     pass
+
