@@ -2,5 +2,6 @@ S',S,L
 (,),a,，
 S' - S
 S - ( L )
+S - a
 L - L ， S
 L - S

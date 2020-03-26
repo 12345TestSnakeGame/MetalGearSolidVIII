@@ -1,9 +1,9 @@
 digit,digits,optionalFraction,optionalExponent,number,letter_,id
-0,1,2,3,4,5,6,7,8,9,A,B,C,D,.,+,-,E,empty
-digit - 0 | 1 | 2 | 3 | 4 | 6 | 7 | 8 | 9
-letter_ - A | B | C | D | E
+0,1,2,A,B,C,.,+,-,E,empty
+^digit - 0 | 1 | 2
+^letter_ - A | B | C
 id - letter_ ( letter_ | digit ) *
-digits - digit digit *
+^digits - digit digit *
 ^optionalFraction - . digits | empty
 ^optionalExponent - ( E ( + | - | empty ) digits ) | empty
 number - digits optionalFraction optionalExponent
