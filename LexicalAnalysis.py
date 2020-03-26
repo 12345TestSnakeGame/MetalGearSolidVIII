@@ -107,20 +107,20 @@ class Phrase:
         self.end.add_node(Edge('empty'), post_phrase.start)
 
     def concatenate(self, pre, post):
-        # self.start.add_node(Edge('empty'), pre.start)
-        # pre.end.add_node(Edge('empty'), post.start)
-        # post.end.add_node(Edge('empty'), self.end)
-        self.start = pre.start
-        self.end = post.end
+        self.start.add_node(Edge('empty'), pre.start)
         pre.end.add_node(Edge('empty'), post.start)
+        post.end.add_node(Edge('empty'), self.end)
+        # self.start = pre.start
+        # self.end = post.end
+        # pre.end.add_node(Edge('empty'), post.start)
 
     def star(self, phrase):
-        self.start = phrase.start
-        self.end = phrase.end
+        # self.start = phrase.start
+        # self.end = phrase.end
         self.start.add_node(Edge('empty'), self.end)
         self.end.add_node(Edge('empty'), self.start)
-        # self.start.add_node(Edge('empty'), phrase.start)
-        # phrase.start.add_node(Edge('empty'), phrase.end)
+        self.start.add_node(Edge('empty'), phrase.start)
+        phrase.end.add_node(Edge('empty'), self.end)
 
     def branch(self, p1, p2):
         self.start.add_node(Edge('empty'), p1.start)
@@ -132,11 +132,11 @@ class Phrase:
         self.start.add_node(Edge(ch), self.end)
 
     def insert(self, phrase):
-        # self.start.add_node(Edge('empty'), phrase.start)
-        # phrase.end.add_node(Edge('empty'), self.end)
+        self.start.add_node(Edge('empty'), phrase.start)
+        phrase.end.add_node(Edge('empty'), self.end)
         # 这样写会不会快一些？
-        self.start = phrase.start
-        self.end = phrase.end
+        # self.start = phrase.start
+        # self.end = phrase.end
 
     def __repr__(self):
         return '==' + str(self.start) + '-' + str(self.end) + '=='
@@ -213,6 +213,8 @@ class e_NFA(FA):
         self.regex_built_in = {'(', ')', '|', '*'}
         self.terminals = {}
         self.non_terminals = {}
+        # 记录变量出现的顺序
+        self.variable = []
         self.reg_ex = {}
         self.phrases = {}
         # 从文件中读取正则表达式的构造规则(cfg)，得到LR分析器，用于分析每一条正则表达式的句法结构
@@ -254,6 +256,7 @@ class e_NFA(FA):
         for line in lines[2:]:
             chars = line.split(' ')
             var = self.non_terminals[chars[0]]
+            self.variable.append(var)
             expression = []
             for elements in chars[2:]:
                 if elements in self.regex_built_in:
@@ -280,6 +283,7 @@ class e_NFA(FA):
                     a.append('entity')
             string = ' '.join(a[2:])
             self.lr.parse(string)
+            # self.lr.visualize_tree()
             tree = self.lr.tree
             entities = value.copy()
             entities.reverse()
@@ -290,21 +294,57 @@ class e_NFA(FA):
         # 子集构造法生成转换表
         # 实际上将正则表达式转换为自动机，通用的方法是直接转换为epsilon-NFA，然后直接子集构造法转换为DFA
         # 因此，另外两个FA的类其实就没有用了
-        tab = self.__subset_construct()
-        print(tab)
+        tab, endings = self.__subset_construct()
+        # 写到文件里看看长啥样
+        # f = open('result.txt', 'w', encoding='utf-8')
+        # for (key, value) in tab.items():
+        #     f.write(str(key) + ' -- ' + str(value))
+        # f.close()
+        # print(tab)
         time_end = time.time()
         print('finished, took ' + str(time_end - time_start) + ' s')
 
+        # 重整转换表
+        status_count = len(tab)
+        new_table = {}
+        end_status = {}
+        status = {}
+        reverse_status = {}
+        count = 0
+        for (key, value) in tab.items():
+            new_table[count] = {}
+            status[count] = key
+            reverse_status[key] = count
+            count = count + 1
+        for (key, value) in tab.items():
+            for (key1, value1) in value.items():
+                temp = list(value1)
+                temp.sort()
+                temptemp = tuple(temp)
+                new_table[reverse_status[key]][key1] = reverse_status[temptemp]
+        for nt in self.variable:
+            cur_end = endings[nt]
+            for (key, value) in new_table.items():
+                original_set = set(status[key])
+                if cur_end in original_set:
+                    end_status[key] = nt
+        print(new_table)
+        print(end_status)
+
+
+    # 子集构造法
     def __subset_construct(self):
         start_node = self.fa_node.generate()
         end_nodes = {}
         # 用一个结点与所有开始状态连接，并记录所有结束状态
         for (key, value) in self.phrases.items():
             start_node.add_node(Edge('empty'), value.start)
+            # end_nodes[value.end] = key
             end_nodes[key] = value.end
+        # 绘图观察
         temp_phrase = Phrase(self.fa_node)
         temp_phrase.start = start_node
-        # self.__visualize_phrase(temp_phrase)
+        self.__visualize_phrase(temp_phrase)
         # 类似于广度优先搜索
         to_explore = set()
         explored = set()
@@ -352,12 +392,18 @@ class e_NFA(FA):
                         fa_table[o][key] = value
                     else:
                         fa_table[o] = {key: value}
+                # 如果switch_table里面什么都没有，说明已经到了结尾状态
+                if len(switch_table) == 0:
+                    origin = [s]
+                    origin.sort()
+                    o = tuple(*origin)
+                    fa_table[o] = {}
                 s.sort()
                 s = tuple(s)
                 explored.add(s)
             exploring = to_explore.copy()
             to_explore.clear()
-        return fa_table
+        return fa_table, end_nodes
 
     def __eclosure(self, _node):
         empty_edge = Edge('empty')
@@ -384,6 +430,7 @@ class e_NFA(FA):
         # self.__visualize_phrase(initial_phrase)
         return initial_phrase
 
+    # 绘制一个phrase的自动机图
     def __visualize_phrase(self, p: Phrase):
         dot = Digraph(comment='finite automata')
         dot.node(p.start.__str__(), p.start.__str__())
@@ -391,6 +438,7 @@ class e_NFA(FA):
         self.__visualize_node(p.start, dot, edge_set)
         dot.view()
 
+    # __visualize_phrase的子函数
     def __visualize_node(self, n: _node, dot, edge_s):
         father_name = n.__str__()
         for (key, value) in n.next.items():
