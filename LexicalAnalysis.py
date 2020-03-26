@@ -98,6 +98,10 @@ class _node:
             return self.order >= other.order
 
 
+# phrase是构建一个自动机的基本单元
+#   start是这个自动机模块的起始点，end是结束点
+# 以phrase为基本单位进行连接，|，*等操作
+# TODO 添加对+,?的支持
 class Phrase:
     def __init__(self, Nodes: FA_Node):
         self.fa_node = Nodes
@@ -111,9 +115,6 @@ class Phrase:
         self.start.add_node(Edge('empty'), pre.start)
         pre.end.add_node(Edge('empty'), post.start)
         post.end.add_node(Edge('empty'), self.end)
-        # self.start = pre.start
-        # self.end = post.end
-        # pre.end.add_node(Edge('empty'), post.start)
 
     def star(self, phrase):
         # self.start = phrase.start
@@ -199,62 +200,32 @@ class FA:
         pass
 
 
-class DFA(FA):
-    def __init__(self):
-        super().__init__()
-
-    # 自己的补全
-    def compile_regex(self, filename: str):
-        pass
-
-    # 输入一段text，生成词法分析的输出结果
-    def lexical_analyse(self, text):
-        pass
-
-    # 生成正则文法所产生的转换图
-    def diagram(self):
-        pass
-
-
-class NFA(FA):
-    def __init__(self):
-        super().__init__()
-
-    # 自己的补全
-    def compile_regex(self, filename: str):
-        pass
-
-    # 输入一段text，生成词法分析的输出结果
-    def lexical_analyse(self, text):
-        pass
-
-    # 生成正则文法所产生的转换图
-    def diagram(self):
-        pass
-
-    def to_DFA(self):
-        pass
-
-
 class e_NFA(FA):
     def __init__(self):
         super().__init__()
         self.fa_node = FA_Node(0)
         # 默认的正则表达式内置符号。如果有冲突，需要在前面加一个斜杠
         self.__regex_built_in = {'(', ')', '|', '*'}
+        # 当扫描字符序列时，遇到这些字符即停止扫描
         self.__stop_symbol = {'\t', '\n', ' ', '$'}
+        # 存储所有的终结符与非终结符
         self.terminals = {}
         self.non_terminals = {}
-        # 记录变量出现的顺序
+        # 记录变量出现的顺序。在我的句法分析的实现中，所有除了正则表达式内置符号之外的符号都被置换为entity
+        # 因此需要将原符号的顺序记录下来，同时生成置换后的字符串
         self.__variable = []
         self.__reg_ex = {}
+        # 存储每个变元所对应的自动机的模块
         self.phrases = {}
         # 不可作为接受状态的变元
         self.__non_acc = set()
         # 从文件中读取正则表达式的构造规则(cfg)，得到LR分析器，用于分析每一条正则表达式的句法结构
         self.__lr = LR_Parser(cfg_readfile('cfg_regex.txt'))
+        # 内部DFA转换表，key值是symbol
         self.__table = {}
+        # 供外部访问的DFA转换表，key值被改为str
         self.table = {}
+        # 终止结点
         self.end = {}
 
     # 从文件中读取正则文法，然后构造自动机与转换表
@@ -268,10 +239,12 @@ class e_NFA(FA):
         #   右部中出现的非终结符必须在前面的行出现过
         #   由'#'开头的所有行都会忽略掉，作为注释
         #   由'^'开头的行，其符号只作为变元存在，而不能作为接收状态
+        #   如果与正则表达式的符号冲突，如括号，|，在前面加个反斜杠\
         f = open(filename, 'r', encoding='utf-8')
         s = f.readlines()
         f.close()
 
+        # 预处理，去除行尾回车和注释行
         lines = []
         for l in s:
             if len(l) <= 1:
@@ -301,6 +274,7 @@ class e_NFA(FA):
                 chars = line.split(' ')
                 var = self.non_terminals[chars[0]]
 
+            # 记录该正则表达式中符号出现的顺序
             self.__variable.append(var)
             expression = []
             for elements in chars[2:]:
@@ -315,32 +289,35 @@ class e_NFA(FA):
             self.__reg_ex[var] = expression
 
         # 开始构建自动机
-        eNFA = {}
+        # 第2行开始才是正则表达式
         idx = 2
         for (key, value) in self.__reg_ex.items():
             analyze_str = lines[idx].split(' ')
             idx = idx + 1
             a = []
+            # 置换entity
             for symb in analyze_str:
                 if symb in self.__regex_built_in:
                     a.append(symb)
                 else:
                     a.append('entity')
             string = ' '.join(a[2:])
+            # LR分析
             self.__lr.parse(string)
             # self.__lr.visualize_tree()
             tree = self.__lr.tree
             entities = value.copy()
             entities.reverse()
 
+            # 对句法树进行先序遍历，用phrase组装自动机
             phrase = self.__traverse_compile(tree, entities)
             self.phrases[key] = phrase
             # self.__visualize_phrase(phrase)
             # print(' ')
 
-        # 子集构造法生成转换表
+        # 子集构造法生成转换表，将所有自动机合起来
         # 实际上将正则表达式转换为自动机，通用的方法是直接转换为epsilon-NFA，然后直接子集构造法转换为DFA
-        # 因此，另外两个FA的类其实就没有用了
+        # 因此，另外两个FA的类其实就没有用了---已经删掉了
         tab, endings = self.__subset_construct()
         # 写到文件里看看长啥样
         # f = open('result.txt', 'w', encoding='utf-8')
@@ -352,9 +329,9 @@ class e_NFA(FA):
         print('finished, took ' + str(time_end - time_start) + ' s')
 
         # 重整转换表
-        status_count = len(tab)
         new_table = {}
         end_status = {}
+        # 存放旧状态（复杂的子集）与新状态（计数）之间的对应关系
         status = {}
         reverse_status = {}
         count = 0
@@ -370,6 +347,7 @@ class e_NFA(FA):
                 temptemp = tuple(temp)
                 new_table[reverse_status[key]][key1] = reverse_status[temptemp]
         for nt in self.__variable:
+            # 有的变元不能成为接收状态
             if nt in self.__non_acc:
                 continue
             cur_end = endings[nt]
@@ -388,17 +366,18 @@ class e_NFA(FA):
 
     # 子集构造法
     def __subset_construct(self):
+        # 用一个结点与所有开始状态连接，并记录所有结束状态
         start_node = self.fa_node.generate()
         end_nodes = {}
-        # 用一个结点与所有开始状态连接，并记录所有结束状态
         for (key, value) in self.phrases.items():
             start_node.add_node(Edge('empty'), value.start)
-            # end_nodes[value.end] = key
             end_nodes[key] = value.end
+
         # 绘图观察
         # temp_phrase = Phrase(self.fa_node)
         # temp_phrase.start = start_node
         # self.__visualize_phrase(temp_phrase)
+
         # 类似于广度优先搜索
         to_explore = set()
         explored = set()
@@ -406,7 +385,6 @@ class e_NFA(FA):
         st = tuple(list(self.__eclosure(start_node)))
         exploring.add(st)
         fa_table = {}
-        end_status = set()
         while len(exploring) != 0:
             # 对每个状态子集
             for s in exploring:
@@ -459,6 +437,7 @@ class e_NFA(FA):
             to_explore.clear()
         return fa_table, end_nodes
 
+    # 计算node对应的closure闭包
     def __eclosure(self, _node):
         empty_edge = Edge('empty')
         # 广度优先搜索
@@ -643,6 +622,10 @@ class e_NFA(FA):
                         current_status = self.table[current_status][ch]
         print(' '.join(list(map(str, lexical_result))))
 
+    # TODO 读入与输出FA转换表
+    # TODO 对于不同符号的不同行为，如const，id与关键字，会输出不同的token二元组
+    # TODO 恐慌模式错误恢复
+    # TODO 设计测试用例包括：拼写错误
 
 
 
