@@ -242,7 +242,7 @@ class e_NFA(FA):
         self.fa_node = FA_Node(0)
         # 默认的正则表达式内置符号。如果有冲突，需要在前面加一个斜杠
         self.__regex_built_in = {'(', ')', '|', '*'}
-        self.__stop_symbol = {'\t', '\n', ' '}
+        self.__stop_symbol = {'\t', '\n', ' ', '$'}
         self.terminals = {}
         self.non_terminals = {}
         # 记录变量出现的顺序
@@ -585,6 +585,7 @@ class e_NFA(FA):
         f.close()
         content = list(content)
         content.reverse()
+        content = ['$'] + content
 
         # 存放词法分析的结果
         lexical_result = []
@@ -653,8 +654,8 @@ if __name__ == '__main__':
     # lr.parse('( ( ( entity ( entity | entity | entity ) entity entity * ) | entity ) entity ) | entity entity *')
     # LR_tree = lr.tree
     enfa = e_NFA()
-    enfa.compile_regex('testCases/regex/regex_5.txt')
+    enfa.compile_regex('testCases/regex/regex_C.txt')
     # enfa.visualize_DFA()
-    enfa.lexical_analyse('testCases/lexical/lexical_1.txt', 'code_C_result.txt')
+    enfa.lexical_analyse('testCases/lexical/lexical_2.txt', 'code_C_result.txt')
     pass
 
