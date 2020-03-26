@@ -1,7 +1,7 @@
 import time
 from SyntaxAnalysis import *
 import pickle
-from graphviz import Digraph
+# from graphviz import Digraph
 
 
 # 产生node，并分配序号
@@ -100,6 +100,7 @@ class _node:
 
 class Phrase:
     def __init__(self, Nodes: FA_Node):
+        self.fa_node = Nodes
         self.start = Nodes.generate()
         self.end = Nodes.generate()
 
@@ -132,11 +133,44 @@ class Phrase:
         self.start.add_node(Edge(ch), self.end)
 
     def insert(self, phrase):
-        self.start.add_node(Edge('empty'), phrase.start)
-        phrase.end.add_node(Edge('empty'), self.end)
-        # 这样写会不会快一些？
-        # self.start = phrase.start
-        # self.end = phrase.end
+        # 不！能！直接把phrase原封不动嵌入进来。
+        # 因为本质上是同型的自动机在不同的位置，于是起始与终止状态不同
+        # self.start.add_node(Edge('empty'), phrase.start)
+        # phrase.end.add_node(Edge('empty'), self.end)
+
+        newphrase = Phrase(self.fa_node)
+        self.copy(phrase, newphrase)
+        self.start.add_node(Edge('empty'), newphrase.start)
+        newphrase.end.add_node(Edge('empty'), self.end)
+
+    def copy(self, original_phrase, new_phrase):
+        # 还是三集合-广度优先搜索方法最好用
+        explored = set()
+        to_explore = set()
+        exploring = set()
+        new_start = new_phrase.start
+        old2new = {original_phrase.start:new_start}
+        to_explore.add(original_phrase.start)
+        while len(to_explore) != 0:
+            for n in to_explore:
+                newn = old2new[n]
+                for (key, value) in n.next.items():
+                    for v in value:
+                        # 如果已经访问过了
+                        if v in old2new:
+                            newn.add_node(key, old2new[v])
+                        else:
+                            newnode = self.fa_node.generate()
+                            old2new[v] = newnode
+                            newn.add_node(key, newnode)
+                            exploring.add(v)
+            explored = explored.union(to_explore)
+            to_explore = exploring.copy()
+            exploring.clear()
+        new_phrase.end = old2new[original_phrase.end]
+
+
+
 
     def __repr__(self):
         return '==' + str(self.start) + '-' + str(self.end) + '=='
@@ -157,10 +191,6 @@ class FA:
     #   · 消除冗余
     #   · 生成词法分析的转换表
     def compile_regex(self, filename: str):
-        pass
-
-    # 输入一段text，生成词法分析的输出结果
-    def lexical_analyse(self, text):
         pass
 
     # 生成正则文法所产生的转换图
@@ -210,15 +240,17 @@ class e_NFA(FA):
         super().__init__()
         self.fa_node = FA_Node(0)
         # 默认的正则表达式内置符号。如果有冲突，需要在前面加一个斜杠
-        self.regex_built_in = {'(', ')', '|', '*'}
+        self.__regex_built_in = {'(', ')', '|', '*'}
         self.terminals = {}
         self.non_terminals = {}
         # 记录变量出现的顺序
-        self.variable = []
-        self.reg_ex = {}
+        self.__variable = []
+        self.__reg_ex = {}
         self.phrases = {}
         # 从文件中读取正则表达式的构造规则(cfg)，得到LR分析器，用于分析每一条正则表达式的句法结构
-        self.lr = LR_Parser(cfg_readfile('cfg_regex.txt'))
+        self.__lr = LR_Parser(cfg_readfile('cfg_regex.txt'))
+        self.table = {}
+        self.end = {}
 
     # 从文件中读取正则文法，然后构造自动机与转换表
     def compile_regex(self, filename: str):
@@ -256,10 +288,10 @@ class e_NFA(FA):
         for line in lines[2:]:
             chars = line.split(' ')
             var = self.non_terminals[chars[0]]
-            self.variable.append(var)
+            self.__variable.append(var)
             expression = []
             for elements in chars[2:]:
-                if elements in self.regex_built_in:
+                if elements in self.__regex_built_in:
                     continue
                 elif elements in self.non_terminals:
                     expression.append(self.non_terminals[elements])
@@ -267,29 +299,31 @@ class e_NFA(FA):
                     expression.append(self.terminals[elements])
                 else:
                     raise Exception('e_NFA:正则表达式读取错误!')
-            self.reg_ex[var] = expression
+            self.__reg_ex[var] = expression
 
         # 开始构建自动机
         eNFA = {}
         idx = 2
-        for (key, value) in self.reg_ex.items():
+        for (key, value) in self.__reg_ex.items():
             analyze_str = lines[idx].split(' ')
             idx = idx + 1
             a = []
             for symb in analyze_str:
-                if symb in self.regex_built_in:
+                if symb in self.__regex_built_in:
                     a.append(symb)
                 else:
                     a.append('entity')
             string = ' '.join(a[2:])
-            self.lr.parse(string)
-            # self.lr.visualize_tree()
-            tree = self.lr.tree
+            self.__lr.parse(string)
+            # self.__lr.visualize_tree()
+            tree = self.__lr.tree
             entities = value.copy()
             entities.reverse()
 
             phrase = self.__traverse_compile(tree, entities)
             self.phrases[key] = phrase
+            # self.__visualize_phrase(phrase)
+            # print(' ')
 
         # 子集构造法生成转换表
         # 实际上将正则表达式转换为自动机，通用的方法是直接转换为epsilon-NFA，然后直接子集构造法转换为DFA
@@ -322,7 +356,7 @@ class e_NFA(FA):
                 temp.sort()
                 temptemp = tuple(temp)
                 new_table[reverse_status[key]][key1] = reverse_status[temptemp]
-        for nt in self.variable:
+        for nt in self.__variable:
             cur_end = endings[nt]
             for (key, value) in new_table.items():
                 original_set = set(status[key])
@@ -330,7 +364,8 @@ class e_NFA(FA):
                     end_status[key] = nt
         print(new_table)
         print(end_status)
-
+        self.table = new_table
+        self.end = end_status
 
     # 子集构造法
     def __subset_construct(self):
@@ -342,9 +377,9 @@ class e_NFA(FA):
             # end_nodes[value.end] = key
             end_nodes[key] = value.end
         # 绘图观察
-        temp_phrase = Phrase(self.fa_node)
-        temp_phrase.start = start_node
-        self.__visualize_phrase(temp_phrase)
+        # temp_phrase = Phrase(self.fa_node)
+        # temp_phrase.start = start_node
+        # self.__visualize_phrase(temp_phrase)
         # 类似于广度优先搜索
         to_explore = set()
         explored = set()
@@ -453,6 +488,20 @@ class e_NFA(FA):
 
                 self.__visualize_node(post, dot, edge_s)
 
+    # 可视化产生的DFA
+    def visualize_DFA(self):
+        d = Digraph(comment='DFA')
+        for (key, value) in self.table.items():
+            if key in self.end:
+                d.node(str(key), str(key) + '-' + str(self.end[key]), color='red')
+            else:
+                d.node(str(key), str(key))
+        for (key, value) in self.table.items():
+            for (key1, value1) in value.items():
+                d.edge(str(key), str(value1), str(key1))
+        d.view()
+        # d.render('test-output/DFA_.gv', view=True)
+
     # 根据treenode构造phrase
     def __recursive_traverse(self, tree_node: {}, entities: []):
         for (key, value) in tree_node.items():
@@ -510,16 +559,13 @@ class e_NFA(FA):
     def __SDT_compile(self):
         pass
 
-    # 输入一段text，生成词法分析的输出结果
-    def lexical_analyse(self, text):
-        pass
+    # 输入一个文本，生成词法分析的输出结果
+    def lexical_analyse(self, input_filename: str, output_filename: str):
+        f = open(input_filename, 'r', encoding='utf-8')
+        content = f.read()
+        f.close()
 
-    # 生成正则文法所产生的转换图
-    def diagram(self):
-        pass
 
-    def to_NFA(self):
-        pass
 
 
 if __name__ == '__main__':
@@ -528,5 +574,6 @@ if __name__ == '__main__':
     # lr.parse('( ( ( entity ( entity | entity | entity ) entity entity * ) | entity ) entity ) | entity entity *')
     # LR_tree = lr.tree
     enfa = e_NFA()
-    enfa.compile_regex('testCases/regex/regex_C.txt')
+    enfa.compile_regex('testCases/regex/regex_3.txt')
+    enfa.visualize_DFA()
     pass
