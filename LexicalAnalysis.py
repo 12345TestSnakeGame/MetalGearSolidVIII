@@ -1,3 +1,4 @@
+import time
 from SyntaxAnalysis import *
 import pickle
 from graphviz import Digraph
@@ -106,15 +107,20 @@ class Phrase:
         self.end.add_node(Edge('empty'), post_phrase.start)
 
     def concatenate(self, pre, post):
-        self.start.add_node(Edge('empty'), pre.start)
+        # self.start.add_node(Edge('empty'), pre.start)
+        # pre.end.add_node(Edge('empty'), post.start)
+        # post.end.add_node(Edge('empty'), self.end)
+        self.start = pre.start
+        self.end = post.end
         pre.end.add_node(Edge('empty'), post.start)
-        post.end.add_node(Edge('empty'), self.end)
 
     def star(self, phrase):
+        self.start = phrase.start
+        self.end = phrase.end
         self.start.add_node(Edge('empty'), self.end)
         self.end.add_node(Edge('empty'), self.start)
-        self.start.add_node(Edge('empty'), phrase.start)
-        phrase.start.add_node(Edge('empty'), phrase.end)
+        # self.start.add_node(Edge('empty'), phrase.start)
+        # phrase.start.add_node(Edge('empty'), phrase.end)
 
     def branch(self, p1, p2):
         self.start.add_node(Edge('empty'), p1.start)
@@ -126,8 +132,11 @@ class Phrase:
         self.start.add_node(Edge(ch), self.end)
 
     def insert(self, phrase):
-        self.start.add_node(Edge('empty'), phrase.start)
-        phrase.end.add_node(Edge('empty'), self.end)
+        # self.start.add_node(Edge('empty'), phrase.start)
+        # phrase.end.add_node(Edge('empty'), self.end)
+        # 这样写会不会快一些？
+        self.start = phrase.start
+        self.end = phrase.end
 
     def __repr__(self):
         return '==' + str(self.start) + '-' + str(self.end) + '=='
@@ -211,6 +220,7 @@ class e_NFA(FA):
 
     # 从文件中读取正则文法，然后构造自动机与转换表
     def compile_regex(self, filename: str):
+        time_start = time.time()
         # 正则文法的规则：
         # 第一行：所有的非终结符
         # 第二行：所有的终结符
@@ -280,8 +290,10 @@ class e_NFA(FA):
         # 子集构造法生成转换表
         # 实际上将正则表达式转换为自动机，通用的方法是直接转换为epsilon-NFA，然后直接子集构造法转换为DFA
         # 因此，另外两个FA的类其实就没有用了
-        self.__subset_construct()
-        print('finished')
+        tab = self.__subset_construct()
+        print(tab)
+        time_end = time.time()
+        print('finished, took ' + str(time_end - time_start) + ' s')
 
     def __subset_construct(self):
         start_node = self.fa_node.generate()
@@ -290,20 +302,29 @@ class e_NFA(FA):
         for (key, value) in self.phrases.items():
             start_node.add_node(Edge('empty'), value.start)
             end_nodes[key] = value.end
+        temp_phrase = Phrase(self.fa_node)
+        temp_phrase.start = start_node
+        # self.__visualize_phrase(temp_phrase)
         # 类似于广度优先搜索
         to_explore = set()
         explored = set()
-        exploring = {set(self.__eclosure(start_node))}
+        exploring = set()
+        st = tuple(list(self.__eclosure(start_node)))
+        exploring.add(st)
         fa_table = {}
         end_status = set()
         while len(exploring) != 0:
             # 对每个状态子集
             for s in exploring:
+                s = list(s[:])
                 # 对状态子集中的每个状态
                 # 所有状态的所有可达状态
                 switch_table = {}
                 for k in s:
-                    for (key, value) in k.items():
+                    for (key, value) in k.next.items():
+                        # 跳过所有空转移。closure保证了不会有子集之间的空转移
+                        if key.symbol == 'empty':
+                            continue
                         if key in switch_table:
                             switch_table[key] = switch_table[key].union(set(value))
                         else:
@@ -319,18 +340,24 @@ class e_NFA(FA):
                 # 将新触及的状态子集填写进转换表
                 for (key, value) in switch_table.items():
                     # 未探索过的状态加入探索集合
-                    if value not in explored and value not in exploring:
-                        to_explore.add(value)
+                    set_value = list(value)
+                    set_value.sort()
+                    set_value = tuple(set_value)
+                    if set_value not in explored and value not in exploring:
+                        to_explore.add(set_value)
                     origin = [s]
                     origin.sort()
-                    origin = tuple(origin)
-                    if origin in fa_table:
-                        fa_table[origin][key] = value
+                    o = tuple(*origin)
+                    if o in fa_table:
+                        fa_table[o][key] = value
                     else:
-                        fa_table[origin] = {key: value}
+                        fa_table[o] = {key: value}
+                s.sort()
+                s = tuple(s)
                 explored.add(s)
             exploring = to_explore.copy()
             to_explore.clear()
+        return fa_table
 
     def __eclosure(self, _node):
         empty_edge = Edge('empty')
@@ -342,7 +369,8 @@ class e_NFA(FA):
             for n in exploring:
                 if empty_edge in n.next:
                     for k in n.next[empty_edge]:
-                        to_explore.add(k)
+                        if k not in explored and k not in exploring:
+                            to_explore.add(k)
             for k in exploring:
                 explored.add(k)
             exploring = to_explore.copy()
@@ -353,7 +381,7 @@ class e_NFA(FA):
     def __traverse_compile(self, tree: {}, entities: []):
         # 通过前序遍历构建自动机
         initial_phrase = self.__recursive_traverse(tree, entities)
-        self.__visualize_phrase(initial_phrase)
+        # self.__visualize_phrase(initial_phrase)
         return initial_phrase
 
     def __visualize_phrase(self, p: Phrase):
@@ -452,5 +480,5 @@ if __name__ == '__main__':
     # lr.parse('( ( ( entity ( entity | entity | entity ) entity entity * ) | entity ) entity ) | entity entity *')
     # LR_tree = lr.tree
     enfa = e_NFA()
-    enfa.compile_regex('regex_C.txt')
+    enfa.compile_regex('testCases/regex/regex_C.txt')
     pass
