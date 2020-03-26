@@ -61,7 +61,7 @@ class _node:
             self.next[symbol] = [other_node]
 
     def __repr__(self):
-        return '-node_' + str(self.order) + '-' +  str(self.number) + '-'
+        return '-node_' + str(self.order) + '-' + str(self.number) + '-'
 
     def __str(self):
         return self.__repr__()
@@ -70,7 +70,7 @@ class _node:
         return other.number == self.number and self.order == other.order
 
     def __hash__(self):
-        return self.number + (self.order + 11221234)*123
+        return self.number + (self.order + 11221234) * 123
 
     def __lt__(self, other):
         if self.order == other.order:
@@ -124,6 +124,10 @@ class Phrase:
 
     def character(self, ch: str):
         self.start.add_node(Edge(ch), self.end)
+
+    def insert(self, phrase):
+        self.start.add_node(Edge('empty'), phrase.start)
+        phrase.end.add_node(Edge('empty'), self.end)
 
     def __repr__(self):
         return '==' + str(self.start) + '-' + str(self.end) + '=='
@@ -220,13 +224,13 @@ class e_NFA(FA):
 
         lines = []
         for l in s:
-            if len(s) <= 1:
+            if len(l) <= 1:
                 continue
-            elif s[0] == '#':
+            elif l[0] == '#':
                 continue
-            if s[-1] == '\n':
-                s = s[:-1]
-            lines.append(s)
+            if l[-1] == '\n':
+                l = l[:-1]
+            lines.append(l)
 
         # non terminals
         Nts = lines[0].split(',')
@@ -256,14 +260,15 @@ class e_NFA(FA):
         eNFA = {}
         idx = 2
         for (key, value) in self.reg_ex.items():
-            analyze_str = lines[idx].split(',')
+            analyze_str = lines[idx].split(' ')
+            idx = idx + 1
             a = []
             for symb in analyze_str:
                 if symb in self.regex_built_in:
                     a.append(symb)
                 else:
                     a.append('entity')
-            string = ' '.join(a)
+            string = ' '.join(a[2:])
             self.lr.parse(string)
             tree = self.lr.tree
             entities = value.copy()
@@ -276,6 +281,7 @@ class e_NFA(FA):
         # 实际上将正则表达式转换为自动机，通用的方法是直接转换为epsilon-NFA，然后直接子集构造法转换为DFA
         # 因此，另外两个FA的类其实就没有用了
         self.__subset_construct()
+        print('finished')
 
     def __subset_construct(self):
         start_node = self.fa_node.generate()
@@ -287,7 +293,7 @@ class e_NFA(FA):
         # 类似于广度优先搜索
         to_explore = set()
         explored = set()
-        exploring = set(self.eclosure(start_node))
+        exploring = {set(self.__eclosure(start_node))}
         fa_table = {}
         end_status = set()
         while len(exploring) != 0:
@@ -307,7 +313,7 @@ class e_NFA(FA):
                 for (key, value) in switch_table.items():
                     closure_subset = set()
                     for incomplete_set in value:
-                        closure_subset = closure_subset.union(self.eclosure(incomplete_set))
+                        closure_subset = closure_subset.union(self.__eclosure(incomplete_set))
                     switch_table[key] = closure_subset
 
                 # 将新触及的状态子集填写进转换表
@@ -326,9 +332,7 @@ class e_NFA(FA):
             exploring = to_explore.copy()
             to_explore.clear()
 
-
-
-    def eclosure(self, _node):
+    def __eclosure(self, _node):
         empty_edge = Edge('empty')
         # 广度优先搜索
         explored = {_node}
@@ -349,7 +353,29 @@ class e_NFA(FA):
     def __traverse_compile(self, tree: {}, entities: []):
         # 通过前序遍历构建自动机
         initial_phrase = self.__recursive_traverse(tree, entities)
+        self.__visualize_phrase(initial_phrase)
         return initial_phrase
+
+    def __visualize_phrase(self, p: Phrase):
+        dot = Digraph(comment='finite automata')
+        dot.node(p.start.__str__(), p.start.__str__())
+        edge_set = set()
+        self.__visualize_node(p.start, dot, edge_set)
+        dot.view()
+
+    def __visualize_node(self, n: _node, dot, edge_s):
+        father_name = n.__str__()
+        for (key, value) in n.next.items():
+            edge = key
+            for post in value:
+                new_edge = (father_name, post.__str__(), edge.__str__())
+                if new_edge in edge_s:
+                    continue
+                else:
+                    dot.edge(father_name, post.__str__(), edge.__str__())
+                    edge_s.add(new_edge)
+
+                self.__visualize_node(post, dot, edge_s)
 
     # 根据treenode构造phrase
     def __recursive_traverse(self, tree_node: {}, entities: []):
@@ -364,36 +390,42 @@ class e_NFA(FA):
             # B - A
             # R - B
             if len(sons) == 1 and isinstance(sons[0], n_terminal):
-                return self.__recursive_traverse(value[0])
+                return self.__recursive_traverse(value[0], entities)
             # R - B | R
             elif len(sons) == 3 and sons[1].s == '|':
                 current_phrase = Phrase(self.fa_node)
-                p1 = self.__recursive_traverse(value[0])
-                p2 = self.__recursive_traverse(value[2])
+                p1 = self.__recursive_traverse(value[0], entities)
+                p2 = self.__recursive_traverse(value[2], entities)
                 current_phrase.branch(p1, p2)
                 return current_phrase
             # B - A B
             elif len(sons) == 2 and sons[1].s != '*':
                 current_phrase = Phrase(self.fa_node)
-                pre = self.__recursive_traverse(value[0])
-                post = self.__recursive_traverse(value[1])
+                pre = self.__recursive_traverse(value[0], entities)
+                post = self.__recursive_traverse(value[1], entities)
                 current_phrase.concatenate(pre, post)
                 return current_phrase
             # A - A *
             elif len(sons) == 2 and sons[1].s == '*':
                 current_phrase = Phrase(self.fa_node)
-                star_phrase = self.__recursive_traverse(value[0])
+                star_phrase = self.__recursive_traverse(value[0], entities)
                 current_phrase.star(star_phrase)
                 return current_phrase
             # A - ( R )
             elif len(sons) == 3 and sons[0].s == '(':
-                return self.__recursive_traverse(value[1])
+                return self.__recursive_traverse(value[1], entities)
             # A - entity
             elif len(sons) == 1 and isinstance(sons[0], terminal):
                 current_phrase = Phrase(self.fa_node)
                 real_entity = entities.pop()
-                assert len(real_entity.s) == 1
-                current_phrase.character(real_entity.s)
+                if isinstance(real_entity, n_terminal):
+                    current_phrase.insert(self.phrases[real_entity])
+                elif isinstance(real_entity, terminal):
+                    if real_entity.s == 'empty':
+                        current_phrase.character('empty')
+                    else:
+                        assert len(real_entity.s) == 1
+                        current_phrase.character(real_entity.s)
                 return current_phrase
             else:
                 raise Exception('e_NFA:遍历树过程中未知产生式!')
@@ -419,6 +451,6 @@ if __name__ == '__main__':
     # lr = LR_Parser(c)
     # lr.parse('( ( ( entity ( entity | entity | entity ) entity entity * ) | entity ) entity ) | entity entity *')
     # LR_tree = lr.tree
-    # enfa = e_NFA()
-    # enfa.traverse_compile(LR_tree)
+    enfa = e_NFA()
+    enfa.compile_regex('regex_C.txt')
     pass
