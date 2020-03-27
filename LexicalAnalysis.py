@@ -103,7 +103,9 @@ class _node:
 # 以phrase为基本单位进行连接，|，*等操作
 # TODO 添加对+,?的支持
 class Phrase:
-    def __init__(self, Nodes: FA_Node):
+    def __init__(self, Nodes: FA_Node, replace: {}):
+        # 一些替换字符串
+        self.__replace = replace
         self.fa_node = Nodes
         self.start = Nodes.generate()
         self.end = Nodes.generate()
@@ -132,6 +134,8 @@ class Phrase:
 
     def character(self, ch: str):
         # assert len(ch) == 1 # 别这么缺德啊
+        if ch in self.__replace:
+            ch = self.__replace[ch]
         self.start.add_node(Edge(ch), self.end)
 
     def insert(self, phrase):
@@ -140,7 +144,7 @@ class Phrase:
         # self.start.add_node(Edge('empty'), phrase.start)
         # phrase.end.add_node(Edge('empty'), self.end)
 
-        newphrase = Phrase(self.fa_node)
+        newphrase = Phrase(self.fa_node, self.__replace)
         self.copy(phrase, newphrase)
         self.start.add_node(Edge('empty'), newphrase.start)
         newphrase.end.add_node(Edge('empty'), self.end)
@@ -208,6 +212,14 @@ class e_NFA(FA):
         self.__regex_built_in = {'(', ')', '|', '*'}
         # 当扫描字符序列时，遇到这些字符即停止扫描
         self.__stop_symbol = {'\t', '\n', ' ', '$'}
+        # 对于内置符号和停用词，在某些情况下是会用到的，而那些情况则用字符串代替
+        self.__reuse_match = {'left_parenthes': '(',
+                              'right_parenthes': ')',
+                              'or': '|',
+                              'star': '*',
+                              'backline': '\n',
+                              'tab': '\t',
+                              'space': ' '}
         # 存储所有的终结符与非终结符
         self.terminals = {}
         self.non_terminals = {}
@@ -516,21 +528,21 @@ class e_NFA(FA):
                 return self.__recursive_traverse(value[0], entities)
             # R - B | R
             elif len(sons) == 3 and sons[1].s == '|':
-                current_phrase = Phrase(self.fa_node)
+                current_phrase = Phrase(self.fa_node, self.__reuse_match)
                 p1 = self.__recursive_traverse(value[0], entities)
                 p2 = self.__recursive_traverse(value[2], entities)
                 current_phrase.branch(p1, p2)
                 return current_phrase
             # B - A B
             elif len(sons) == 2 and sons[1].s != '*':
-                current_phrase = Phrase(self.fa_node)
+                current_phrase = Phrase(self.fa_node, self.__reuse_match)
                 pre = self.__recursive_traverse(value[0], entities)
                 post = self.__recursive_traverse(value[1], entities)
                 current_phrase.concatenate(pre, post)
                 return current_phrase
             # A - A *
             elif len(sons) == 2 and sons[1].s == '*':
-                current_phrase = Phrase(self.fa_node)
+                current_phrase = Phrase(self.fa_node, self.__reuse_match)
                 star_phrase = self.__recursive_traverse(value[0], entities)
                 current_phrase.star(star_phrase)
                 return current_phrase
@@ -539,7 +551,7 @@ class e_NFA(FA):
                 return self.__recursive_traverse(value[1], entities)
             # A - entity
             elif len(sons) == 1 and isinstance(sons[0], terminal):
-                current_phrase = Phrase(self.fa_node)
+                current_phrase = Phrase(self.fa_node, self.__reuse_match)
                 real_entity = entities.pop()
                 if isinstance(real_entity, n_terminal):
                     current_phrase.insert(self.phrases[real_entity])
@@ -626,6 +638,7 @@ class e_NFA(FA):
     # TODO 对于不同符号的不同行为，如const，id与关键字，会输出不同的token二元组
     # TODO 恐慌模式错误恢复
     # TODO 设计测试用例包括：拼写错误
+    # TODO DFA中消除无效状态
 
 
 
