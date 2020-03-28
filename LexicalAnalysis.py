@@ -1,6 +1,8 @@
 import time
 from SyntaxAnalysis import *
 import pickle
+
+
 # from graphviz import Digraph
 
 
@@ -155,7 +157,7 @@ class Phrase:
         to_explore = set()
         exploring = set()
         new_start = new_phrase.start
-        old2new = {original_phrase.start:new_start}
+        old2new = {original_phrase.start: new_start}
         to_explore.add(original_phrase.start)
         while len(to_explore) != 0:
             for n in to_explore:
@@ -174,9 +176,6 @@ class Phrase:
             to_explore = exploring.copy()
             exploring.clear()
         new_phrase.end = old2new[original_phrase.end]
-
-
-
 
     def __repr__(self):
         return '==' + str(self.start) + '-' + str(self.end) + '=='
@@ -204,6 +203,12 @@ class FA:
         pass
 
 
+class splited_terminal(n_terminal):
+    def __init__(self, name: str, type: int):
+        super().__init__(name)
+        self.type = type
+
+
 class e_NFA(FA):
     def __init__(self):
         super().__init__()
@@ -219,7 +224,8 @@ class e_NFA(FA):
                               'star': '*',
                               'backline': '\n',
                               'tab': '\t',
-                              'space': ' '}
+                              'space': ' ',
+                              'comma': ','}
         # 存储所有的终结符与非终结符
         self.terminals = {}
         self.non_terminals = {}
@@ -240,6 +246,10 @@ class e_NFA(FA):
         # 终止结点
         self.end = {}
 
+        # 处理注释与字符串的数据结构
+        # (start, end, accept)
+        self.__pair_symbol = {}
+
     # 从文件中读取正则文法，然后构造自动机与转换表
     def compile_regex(self, filename: str):
         time_start = time.time()
@@ -258,14 +268,14 @@ class e_NFA(FA):
 
         # 预处理，去除行尾回车和注释行
         lines = []
-        for l in s:
-            if len(l) <= 1:
+        for lll in s:
+            if len(lll) <= 1:
                 continue
-            elif l[0] == '#':
+            elif lll[0] == '#':
                 continue
-            if l[-1] == '\n':
-                l = l[:-1]
-            lines.append(l)
+            if lll[-1] == '\n':
+                lll = lll[:-1]
+            lines.append(lll)
 
         # non terminals
         Nts = lines[0].split(',')
@@ -274,14 +284,30 @@ class e_NFA(FA):
         # terminals
         Ts = lines[1].split(',')
         for t in Ts:
+            if t in self.__reuse_match:
+                t = self.__reuse_match[t]
             self.terminals[t] = terminal(t)
         # regular expressions
         for line in lines[2:]:
+            # 非接收状态
             if line[0] == '^':
                 line = line[1:]
                 chars = line.split(' ')
                 var = self.non_terminals[chars[0]]
                 self.__non_acc.add(var)
+            # 注释块
+            elif line[0] == ':':
+                line = line[1:]
+                chars = line.split(' ')
+                envir_name = chars[0]
+                split_index = chars.index('and')
+                # 起始和结束符号
+                e_start = chars[2:split_index]
+                e_end = chars[split_index + 1:]
+            # 字符串块
+            elif line[0] == ';':
+                line = line[1:]
+            # 普通符号
             else:
                 chars = line.split(' ')
                 var = self.non_terminals[chars[0]]
@@ -296,8 +322,10 @@ class e_NFA(FA):
                     expression.append(self.non_terminals[elements])
                 elif elements in self.terminals:
                     expression.append(self.terminals[elements])
+                elif elements in self.__reuse_match:
+                    expression.append(self.terminals[self.__reuse_match[elements]])
                 else:
-                    raise Exception('e_NFA:正则表达式读取错误!')
+                    raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
             self.__reg_ex[var] = expression
 
         # 开始构建自动机
@@ -569,6 +597,25 @@ class e_NFA(FA):
     def __SDT_compile(self):
         pass
 
+    # TODO DFA的序列化和反序列化还有很多工作要做，比如说，读取序列化对象后，应该仍然能够可视化
+    def write(self, filename: str):
+        stop_words = self.__stop_symbol
+        tabels = self.table
+        ends = self.end
+
+        f = open(filename, 'wb')
+        pickle.dump((stop_words, tabels, ends), f)
+        f.close()
+
+    def read(self, filename: str):
+        f = open(filename, 'rb')
+        infos = pickle.load(f)
+        f.close()
+
+        self.__stop_symbol = infos[0]
+        self.table = infos[1]
+        self.end = infos[2]
+
     # 输入一个文本，生成词法分析的输出结果
     def lexical_analyse(self, input_filename: str, output_filename: str):
         f = open(input_filename, 'r', encoding='utf-8')
@@ -588,8 +635,13 @@ class e_NFA(FA):
 
             # 先判断是否是停用词
             if ch in self.__stop_symbol:
-                if current_status not in self.end:
-                    raise Exception('LexicalAnalyzer:文法错误!')
+                # 是停用词代表不会进入自动机，看自动机当前状态
+                # 如果自动机在初始状态
+                if current_status == 0:
+                    # 直接跳过
+                    continue
+                elif current_status not in self.end:
+                    raise Exception('LexicalAnalyzer:文法错误!\n' + ' '.join(list(map(str, lexical_result))))
                 else:
                     lexical_result.append(self.end[current_status])
                     current_status = 0
@@ -632,16 +684,16 @@ class e_NFA(FA):
                         # 那就走呗
                         backup_stack.insert(0, ch)
                         current_status = self.table[current_status][ch]
-        print(' '.join(list(map(str, lexical_result))))
+        # print(' '.join(list(map(str, lexical_result))))
+        print(lexical_result)
 
     # TODO 读入与输出FA转换表
     # TODO 对于不同符号的不同行为，如const，id与关键字，会输出不同的token二元组
     # TODO 恐慌模式错误恢复
     # TODO 设计测试用例包括：拼写错误
     # TODO DFA中消除无效状态
-
-
-
+    # TODO 如果回车作为一个符号而不是停用词，词法分析器的行为是一致的吗？
+    # TODO 注释与字符串的解决方法：符号可以包含着行为。行为不一定是移入
 
 
 if __name__ == '__main__':
@@ -650,8 +702,9 @@ if __name__ == '__main__':
     # lr.parse('( ( ( entity ( entity | entity | entity ) entity entity * ) | entity ) entity ) | entity entity *')
     # LR_tree = lr.tree
     enfa = e_NFA()
-    enfa.compile_regex('testCases/regex/regex_C.txt')
+    enfa.compile_regex('regex/regex_java.txt')
+    enfa.write('FA/java_fa.dfa')
+    enfa.read('FA/java_fa.dfa')
     # enfa.visualize_DFA()
-    enfa.lexical_analyse('testCases/lexical/lexical_2.txt', 'code_C_result.txt')
+    enfa.lexical_analyse('Lex_source/java/StellarSystemFactory.java', 'code_C_result.txt')
     pass
-
