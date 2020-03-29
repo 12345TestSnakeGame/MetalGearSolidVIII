@@ -243,6 +243,7 @@ class e_NFA(FA):
         self.table = {}
         # 终止结点
         self.end = {}
+        self.backup_end = {}
 
         self.__end_category = {}
         # const         -   @   获得常量值
@@ -554,6 +555,7 @@ class e_NFA(FA):
         # 重整转换表
         new_table = {}
         end_status = {}
+        backup_end_status = {}
         # 存放旧状态（复杂的子集）与新状态（计数）之间的对应关系
         status = {}
         reverse_status = {}
@@ -574,6 +576,14 @@ class e_NFA(FA):
             # 有的变元不能成为接收状态
             if self.__end_category[nt] in {'ignore'}:
                 continue
+            if nt.s in self.__special_endings:
+                if self.__special_endings[nt.s][1] == 2:
+                    cur_end = endings[nt]
+                    for (key, value) in new_table.items():
+                        original_set = set(status[key])
+                        if cur_end in original_set:
+                            backup_end_status[key] = nt
+                    continue
             cur_end = endings[nt]
             for (key, value) in new_table.items():
                 original_set = set(status[key])
@@ -587,6 +597,7 @@ class e_NFA(FA):
             for (key1, value1) in value.items():
                 self.table[key][key1.symbol] = value1
         self.end = end_status
+        self.backup_end = backup_end_status
 
     # 子集构造法
     def __subset_construct(self):
@@ -789,11 +800,12 @@ class e_NFA(FA):
         phrases = self.phrases
         tabels = self.table
         ends = self.end
+        backup_ends = self.backup_end
         end_category_ = self.__end_category
         special_endings_ = self.__special_endings
         adjustable_endings_ = self.__adjustable_endings
 
-        result = [terminals_, non_terminals_, phrases, tabels, ends, end_category_,
+        result = [terminals_, non_terminals_, phrases, tabels, ends, backup_ends, end_category_,
                   special_endings_, adjustable_endings_]
 
 
@@ -811,9 +823,10 @@ class e_NFA(FA):
         self.phrases = infos[2]
         self.table = infos[3]
         self.end = infos[4]
-        self.__end_category = infos[5]
-        self.__special_endings = infos[6]
-        self.__adjustable_endings = infos[7]
+        self.backup_end = infos[5]
+        self.__end_category = infos[6]
+        self.__special_endings = infos[7]
+        self.__adjustable_endings = infos[8]
 
     # 输入一个文本，生成词法分析的输出结果
     def lexical_analyse(self, input_filename: str, output_filename: str):
@@ -826,9 +839,11 @@ class e_NFA(FA):
 
         # 存放词法分析的结果
         lexical_result = []
+        registered_id = []
         backup_status = 0
         current_status = 0
         backup_stack = []
+        content_stack = []
 
         # 定义三种处理的状态
         #   1 正常读取状态，将读到的字符放入自动机
@@ -850,14 +865,16 @@ class e_NFA(FA):
                     raise Exception('LexicalAnalyzer:文法错误!\n' + ' '.join(list(map(str, lexical_result))))
                 else:
                     lexical_result.append(self.end[current_status])
+                    # TODO
                     current_status = 0
             else:
                 # 如果当前状态是一个终结状态，那么当前状态是一个潜在的成功识别符号
                 if current_status in self.end:
                     # 如果有可行路径，走
                     if ch in self.table[current_status]:
-                        # 当前路径是一个可行符号，先记录下来
+                        # 当前路径是一个可行符号，先记录下来z
                         backup_status = current_status
+                        content_stack += backup_stack
                         backup_stack.clear()
                         # 哨兵继续探索下一个状态
                         current_status = self.table[current_status][ch]
@@ -866,6 +883,7 @@ class e_NFA(FA):
                     else:
                         # 试着接收
                         lexical_result.append(self.end[current_status])
+                        # todo
                         current_status = 0
                         backup_stack.clear()
                         backup_status = 0
@@ -890,7 +908,6 @@ class e_NFA(FA):
                         # 那就走呗
                         backup_stack.insert(0, ch)
                         current_status = self.table[current_status][ch]
-        # print(' '.join(list(map(str, lexical_result))))
         print(lexical_result)
 
     # TODO 读入与输出FA转换表
