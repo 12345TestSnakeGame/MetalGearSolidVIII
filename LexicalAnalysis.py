@@ -267,7 +267,7 @@ class e_NFA(FA):
         #   0 - 接受
         #   1 - 丢弃
         self.__special_endings = {}
-        self.__adjustable_endings = {'non_acc':set(), 'annotation':set(), 'str':set()}
+        self.__adjustable_endings = {'non_acc': set(), 'annotation': set(), 'str': set()}
 
     # 从文件中读取正则文法，然后构造自动机与转换表
     def compile_regex(self, filename: str):
@@ -348,6 +348,8 @@ class e_NFA(FA):
         #             raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
         #     self.__reg_ex[var] = expression
 
+        originline = []
+
         for line in lines[2:]:
             # 标识符号种类的字符
             type_word = line[0]
@@ -373,6 +375,7 @@ class e_NFA(FA):
                         raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
                 self.__reg_ex[var] = expression
                 self.__variable.append(var)
+                originline.append(line)
             elif type_word == '@':
                 cur_type = 'const'
                 line = line[1:]
@@ -393,16 +396,45 @@ class e_NFA(FA):
                         raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
                 self.__reg_ex[var] = expression
                 self.__variable.append(var)
+                originline.append(line)
             elif type_word == ';':
                 cur_type = 'str'
+                line = line[1:]
+                chars = line.split(' ')
+                var_name = chars[0]
+                chars = chars[1:]
+                split_idx = chars.index('and')
+                delimiter_regex = chars[1:split_idx]
+                delimiter_name = var_name + '-0'
+                self.non_terminals[delimiter_name] = n_terminal(delimiter_name)
+                self.__end_category[self.non_terminals[delimiter_name]] = cur_type
+
+                self.__special_endings[delimiter_name] = (self.non_terminals[var_name], 0, 0)
+
+                expression = []
+                for elements in delimiter_regex:
+                    if elements in self.__regex_built_in:
+                        continue
+                    elif elements in self.non_terminals:
+                        expression.append(self.non_terminals[elements])
+                    elif elements in self.terminals:
+                        expression.append(self.terminals[elements])
+                    elif elements in self.__reuse_match:
+                        expression.append(self.terminals[self.__reuse_match[elements]])
+                    else:
+                        raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
+                self.__reg_ex[self.non_terminals[delimiter_name]] = expression
+                self.__variable.append(self.non_terminals[delimiter_name])
+                originline.append(' '.join(['a', 'a'] + delimiter_regex))
             elif type_word == ':':
+                # TODO 这里默认两个不相等了。我实在不想改了
                 cur_type = 'annotation'
                 line = line[1:]
                 chars = line.split(' ')
                 var_name = chars[0]
                 chars = chars[1:]
                 split_idx = chars.index('and')
-                start_regex = chars[:split_idx]
+                start_regex = chars[1:split_idx]
                 end_regex = chars[split_idx + 1:]
                 start_name = var_name + '-1'
                 end_name = var_name + '-2'
@@ -410,6 +442,9 @@ class e_NFA(FA):
                 self.non_terminals[end_name] = n_terminal(end_name)
                 self.__end_category[self.non_terminals[start_name]] = cur_type
                 self.__end_category[self.non_terminals[end_name]] = cur_type
+
+                self.__special_endings[start_name] = (self.non_terminals[var_name], 1, 1)
+                self.__special_endings[end_name] = (self.non_terminals[var_name], 2, 1)
 
                 count = 0
                 names = [start_name, end_name]
@@ -429,6 +464,8 @@ class e_NFA(FA):
                         else:
                             raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
                     self.__reg_ex[var] = expression
+                    self.__variable.append(var)
+                    originline.append(' '.join(['a', 'a'] + regex))
             elif type_word == '&':
                 cur_type = 'id'
                 line = line[1:]
@@ -449,6 +486,7 @@ class e_NFA(FA):
                         raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
                 self.__reg_ex[var] = expression
                 self.__variable.append(var)
+                originline.append(line)
             else:
                 cur_type = 'symbol'
                 chars = line.split(' ')
@@ -468,13 +506,14 @@ class e_NFA(FA):
                         raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
                 self.__reg_ex[var] = expression
                 self.__variable.append(var)
+                originline.append(line)
 
 
         # 开始构建自动机
         # 第2行开始才是正则表达式
-        idx = 2
+        idx = 0
         for (key, value) in self.__reg_ex.items():
-            analyze_str = lines[idx].split(' ')
+            analyze_str = originline[idx].split(' ')
             idx = idx + 1
             a = []
             # 置换entity
@@ -484,6 +523,7 @@ class e_NFA(FA):
                 else:
                     a.append('entity')
             string = ' '.join(a[2:])
+            print(string)
             # LR分析
             self.__lr.parse(string)
             # self.__lr.visualize_tree()
@@ -492,6 +532,7 @@ class e_NFA(FA):
             entities.reverse()
 
             # 对句法树进行先序遍历，用phrase组装自动机
+            print(entities)
             phrase = self.__traverse_compile(tree, entities)
             self.phrases[key] = phrase
             # self.__visualize_phrase(phrase)
@@ -852,7 +893,7 @@ if __name__ == '__main__':
     # lr.parse('( ( ( entity ( entity | entity | entity ) entity entity * ) | entity ) entity ) | entity entity *')
     # LR_tree = lr.tree
     enfa = e_NFA()
-    enfa.compile_regex('regex/regex_java_test.txt')
+    enfa.compile_regex('regex/regex_java.txt')
     enfa.write('FA/java_fa.dfa')
     enfa.read('FA/java_fa.dfa')
     # enfa.visualize_DFA()
