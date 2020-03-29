@@ -12,3 +12,7 @@ if - i f
 else - e l s e
 while - w h i l e
 for - f o r
+# 注释与字符串
+:left_annotation - / * and right_annotation - * / 
+:line_annotation - / / and line_end - backline
+;left_string - ' and right_string - '

@@ -533,6 +533,8 @@ class Automata:
         # self.__construct_table()
         # self.closure_dict = {}
 
+        self.table = self.table_LR1
+
         # TODO 造出一个完整的自动机的数据结构
         # LR0, SLR, LR1, LALR
 
@@ -1012,7 +1014,7 @@ class Parser:
     def parse(self, text: str):
         pass
 
-    def __get_symbolSequence(self, s: str):
+    def _get_symbolSequence(self, s: str):
         if len(s) == 0:
             return None
         elif s[-1] == '\n':
@@ -1030,7 +1032,7 @@ class LR_Parser(Parser):
         self.PDA = Automata(lang)
 
     def parse(self, text: str):
-        symseq = self.__get_symbolSequence(text)
+        symseq = self._get_symbolSequence(text)
         reduce_record = list(map(lambda x: {x: None}, symseq))
         symseq.reverse()
 
@@ -1045,14 +1047,16 @@ class LR_Parser(Parser):
             # 当前的栈底状态
             current_status = status_stack[-1]
             if isinstance(current_symbol, n_terminal):
-                operation = self.PDA.table['GO'][current_status][current_symbol]
+                # operation = self.PDA.table['GO'][current_status][current_symbol]
+                operation = self.PDA.table.get_goto(current_status, current_symbol.s)
                 if len(operation) == 0:
                     raise Exception
                 symbol_stack.append(current_symbol)
                 status_stack.append(operation[0][1])
                 current_symbol = symseq.pop()
             elif isinstance(current_symbol, terminal):
-                operation = self.PDA.table['ACTION'][current_status][current_symbol]
+                # operation = self.PDA.table['ACTION'][current_status][current_symbol]
+                operation = self.PDA.table.get_action(current_status, current_symbol.s)
                 if len(operation) == 0:
                     raise Exception('转换表读取异常')
                 # 归约
@@ -1153,7 +1157,7 @@ class LL_Parser(Parser):
 
     def parse(self, text: str):
         # 有两个栈，一个是输入符号栈，另一个是文法符号栈
-        symbol_stack = self.__get_symbolSequence(text)
+        symbol_stack = self._get_symbolSequence(text)
         reduce_statck = [end_terminal('$'), self.CFG.start]
 
         r = reduce_statck[-1]
