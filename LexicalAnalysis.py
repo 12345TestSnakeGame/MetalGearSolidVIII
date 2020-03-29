@@ -783,12 +783,22 @@ class e_NFA(FA):
 
     # TODO DFA的序列化和反序列化还有很多工作要做，比如说，读取序列化对象后，应该仍然能够可视化
     def write(self, filename: str):
-        stop_words = self.__stop_symbol
+
+        terminals_ = self.terminals
+        non_terminals_ = self.non_terminals
+        phrases = self.phrases
         tabels = self.table
         ends = self.end
+        end_category_ = self.__end_category
+        special_endings_ = self.__special_endings
+        adjustable_endings_ = self.__adjustable_endings
+
+        result = [terminals_, non_terminals_, phrases, tabels, ends, end_category_,
+                  special_endings_, adjustable_endings_]
+
 
         f = open(filename, 'wb')
-        pickle.dump((stop_words, tabels, ends), f)
+        pickle.dump(result, f)
         f.close()
 
     def read(self, filename: str):
@@ -796,9 +806,14 @@ class e_NFA(FA):
         infos = pickle.load(f)
         f.close()
 
-        self.__stop_symbol = infos[0]
-        self.table = infos[1]
-        self.end = infos[2]
+        self.terminals = infos[0]
+        self.non_terminals = infos[1]
+        self.phrases = infos[2]
+        self.table = infos[3]
+        self.end = infos[4]
+        self.__end_category = infos[5]
+        self.__special_endings = infos[6]
+        self.__adjustable_endings = infos[7]
 
     # 输入一个文本，生成词法分析的输出结果
     def lexical_analyse(self, input_filename: str, output_filename: str):
@@ -893,8 +908,8 @@ if __name__ == '__main__':
     # lr.parse('( ( ( entity ( entity | entity | entity ) entity entity * ) | entity ) entity ) | entity entity *')
     # LR_tree = lr.tree
     enfa = e_NFA()
-    enfa.compile_regex('regex/regex_java.txt')
-    enfa.write('FA/java_fa.dfa')
+    # enfa.compile_regex('regex/regex_java.txt')
+    # enfa.write('FA/java_fa.dfa')
     enfa.read('FA/java_fa.dfa')
     # enfa.visualize_DFA()
     enfa.lexical_analyse('Lex_source/java/StellarSystemFactory.java', 'code_C_result.txt')
