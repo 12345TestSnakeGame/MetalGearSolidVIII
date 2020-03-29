@@ -226,7 +226,7 @@ class e_NFA(FA):
                               'tab': '\t',
                               'space': ' ',
                               'comma': ','}
-        # 存储所有的终结符与非终结符
+        # 存储所有的终结符与非终结符--以字符串访问symbol对象
         self.terminals = {}
         self.non_terminals = {}
         # 记录变量出现的顺序。在我的句法分析的实现中，所有除了正则表达式内置符号之外的符号都被置换为entity
@@ -235,8 +235,6 @@ class e_NFA(FA):
         self.__reg_ex = {}
         # 存储每个变元所对应的自动机的模块
         self.phrases = {}
-        # 不可作为接受状态的变元
-        self.__non_acc = set()
         # 从文件中读取正则表达式的构造规则(cfg)，得到LR分析器，用于分析每一条正则表达式的句法结构
         self.__lr = LR_Parser(cfg_readfile('cfg_regex.txt'))
         # 内部DFA转换表，key值是symbol
@@ -246,9 +244,30 @@ class e_NFA(FA):
         # 终止结点
         self.end = {}
 
-        # 处理注释与字符串的数据结构
-        # (start, end, accept)
-        self.__pair_symbol = {}
+        self.__end_category = {}
+        # const         -   @   获得常量值
+        # str           -   ;   获得字符串值
+        # annotation    -   :   直接忽略
+        # symbol        -   普通符号,普通关键字
+        # id            -   &   变量，在注册表中标记
+        # ignore        -   ^   中间变量，不会作为终结状态
+        # 其中annotation与str需要到特殊终结符中去找
+        # 这些特殊ending的状态需要特殊处理
+        # 起始符号默认激活，终止符号默认不激活。当检测到起始符号之后，开始等待终止符号
+
+        # 对于注释与字符串这种涉及到自动机状态的符号，需要另外开辟一个数据结构来处理
+        # 而且有的符号的起始与终止词不同，有的相同，需要加以区分
+        # 元组第一个元素
+        #   符号的名字，也就是显示在词法分析结果的字符串
+        # 元组的第二个元素
+        #   0 - 字符串类，即起始于终止符号相同
+        #   1 - 注释类的起始符号
+        #   2 - 注释类的终止符号
+        # 元组的第三个元素
+        #   0 - 接受
+        #   1 - 丢弃
+        self.__special_endings = {}
+        self.__adjustable_endings = {'non_acc':set(), 'annotation':set(), 'str':set()}
 
     # 从文件中读取正则文法，然后构造自动机与转换表
     def compile_regex(self, filename: str):
@@ -262,6 +281,7 @@ class e_NFA(FA):
         #   由'#'开头的所有行都会忽略掉，作为注释
         #   由'^'开头的行，其符号只作为变元存在，而不能作为接收状态
         #   如果与正则表达式的符号冲突，如括号，|，在前面加个反斜杠\
+        # TODO 需要更新了
         f = open(filename, 'r', encoding='utf-8')
         s = f.readlines()
         f.close()
@@ -288,45 +308,167 @@ class e_NFA(FA):
                 t = self.__reuse_match[t]
             self.terminals[t] = terminal(t)
         # regular expressions
-        for line in lines[2:]:
-            # 非接收状态
-            if line[0] == '^':
-                line = line[1:]
-                chars = line.split(' ')
-                var = self.non_terminals[chars[0]]
-                self.__non_acc.add(var)
-            # 注释块
-            elif line[0] == ':':
-                line = line[1:]
-                chars = line.split(' ')
-                envir_name = chars[0]
-                split_index = chars.index('and')
-                # 起始和结束符号
-                e_start = chars[2:split_index]
-                e_end = chars[split_index + 1:]
-            # 字符串块
-            elif line[0] == ';':
-                line = line[1:]
-            # 普通符号
-            else:
-                chars = line.split(' ')
-                var = self.non_terminals[chars[0]]
+        # for line in lines[2:]:
+        #     # 非接收状态
+        #     if line[0] == '^':
+        #         line = line[1:]
+        #         chars = line.split(' ')
+        #         var = self.non_terminals[chars[0]]
+        #         self.__non_acc.add(var)
+        #     # 注释块
+        #     elif line[0] == ':':
+        #         line = line[1:]
+        #         chars = line.split(' ')
+        #         envir_name = chars[0]
+        #         split_index = chars.index('and')
+        #         # 起始和结束符号
+        #         e_start = chars[2:split_index]
+        #         e_end = chars[split_index + 1:]
+        #     # 字符串块
+        #     elif line[0] == ';':
+        #         line = line[1:]
+        #     # 普通符号
+        #     else:
+        #         chars = line.split(' ')
+        #         var = self.non_terminals[chars[0]]
+        #
+        #     # 记录该正则表达式中符号出现的顺序
+        #     self.__variable.append(var)
+        #     expression = []
+        #     for elements in chars[2:]:
+        #         if elements in self.__regex_built_in:
+        #             continue
+        #         elif elements in self.non_terminals:
+        #             expression.append(self.non_terminals[elements])
+        #         elif elements in self.terminals:
+        #             expression.append(self.terminals[elements])
+        #         elif elements in self.__reuse_match:
+        #             expression.append(self.terminals[self.__reuse_match[elements]])
+        #         else:
+        #             raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
+        #     self.__reg_ex[var] = expression
 
-            # 记录该正则表达式中符号出现的顺序
-            self.__variable.append(var)
-            expression = []
-            for elements in chars[2:]:
-                if elements in self.__regex_built_in:
-                    continue
-                elif elements in self.non_terminals:
-                    expression.append(self.non_terminals[elements])
-                elif elements in self.terminals:
-                    expression.append(self.terminals[elements])
-                elif elements in self.__reuse_match:
-                    expression.append(self.terminals[self.__reuse_match[elements]])
-                else:
-                    raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
-            self.__reg_ex[var] = expression
+        for line in lines[2:]:
+            # 标识符号种类的字符
+            type_word = line[0]
+            cur_type = ''
+            if type_word == '^':
+                cur_type = 'ignore'
+                line = line[1:]
+                chars = line.split(' ')
+                var = self.non_terminals[chars[0]]
+                self.__end_category[var] = cur_type
+                self.__adjustable_endings['non_acc'].add(var)
+                expression = []
+                for elements in chars[2:]:
+                    if elements in self.__regex_built_in:
+                        continue
+                    elif elements in self.non_terminals:
+                        expression.append(self.non_terminals[elements])
+                    elif elements in self.terminals:
+                        expression.append(self.terminals[elements])
+                    elif elements in self.__reuse_match:
+                        expression.append(self.terminals[self.__reuse_match[elements]])
+                    else:
+                        raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
+                self.__reg_ex[var] = expression
+                self.__variable.append(var)
+            elif type_word == '@':
+                cur_type = 'const'
+                line = line[1:]
+                chars = line.split(' ')
+                var = self.non_terminals[chars[0]]
+                self.__end_category[var] = cur_type
+                expression = []
+                for elements in chars[2:]:
+                    if elements in self.__regex_built_in:
+                        continue
+                    elif elements in self.non_terminals:
+                        expression.append(self.non_terminals[elements])
+                    elif elements in self.terminals:
+                        expression.append(self.terminals[elements])
+                    elif elements in self.__reuse_match:
+                        expression.append(self.terminals[self.__reuse_match[elements]])
+                    else:
+                        raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
+                self.__reg_ex[var] = expression
+                self.__variable.append(var)
+            elif type_word == ';':
+                cur_type = 'str'
+            elif type_word == ':':
+                cur_type = 'annotation'
+                line = line[1:]
+                chars = line.split(' ')
+                var_name = chars[0]
+                chars = chars[1:]
+                split_idx = chars.index('and')
+                start_regex = chars[:split_idx]
+                end_regex = chars[split_idx + 1:]
+                start_name = var_name + '-1'
+                end_name = var_name + '-2'
+                self.non_terminals[start_name] = n_terminal(start_name)
+                self.non_terminals[end_name] = n_terminal(end_name)
+                self.__end_category[self.non_terminals[start_name]] = cur_type
+                self.__end_category[self.non_terminals[end_name]] = cur_type
+
+                count = 0
+                names = [start_name, end_name]
+                for regex in [start_regex, end_regex]:
+                    var = self.non_terminals[names[count]]
+                    count += 1
+                    expression = []
+                    for elements in regex:
+                        if elements in self.__regex_built_in:
+                            continue
+                        elif elements in self.non_terminals:
+                            expression.append(self.non_terminals[elements])
+                        elif elements in self.terminals:
+                            expression.append(self.terminals[elements])
+                        elif elements in self.__reuse_match:
+                            expression.append(self.terminals[self.__reuse_match[elements]])
+                        else:
+                            raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
+                    self.__reg_ex[var] = expression
+            elif type_word == '&':
+                cur_type = 'id'
+                line = line[1:]
+                chars = line.split(' ')
+                var = self.non_terminals[chars[0]]
+                self.__end_category[var] = cur_type
+                expression = []
+                for elements in chars[2:]:
+                    if elements in self.__regex_built_in:
+                        continue
+                    elif elements in self.non_terminals:
+                        expression.append(self.non_terminals[elements])
+                    elif elements in self.terminals:
+                        expression.append(self.terminals[elements])
+                    elif elements in self.__reuse_match:
+                        expression.append(self.terminals[self.__reuse_match[elements]])
+                    else:
+                        raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
+                self.__reg_ex[var] = expression
+                self.__variable.append(var)
+            else:
+                cur_type = 'symbol'
+                chars = line.split(' ')
+                var = self.non_terminals[chars[0]]
+                self.__end_category[var] = cur_type
+                expression = []
+                for elements in chars[2:]:
+                    if elements in self.__regex_built_in:
+                        continue
+                    elif elements in self.non_terminals:
+                        expression.append(self.non_terminals[elements])
+                    elif elements in self.terminals:
+                        expression.append(self.terminals[elements])
+                    elif elements in self.__reuse_match:
+                        expression.append(self.terminals[self.__reuse_match[elements]])
+                    else:
+                        raise Exception('e_NFA:正则表达式读取错误!-' + str(elements))
+                self.__reg_ex[var] = expression
+                self.__variable.append(var)
+
 
         # 开始构建自动机
         # 第2行开始才是正则表达式
@@ -386,9 +528,10 @@ class e_NFA(FA):
                 temp.sort()
                 temptemp = tuple(temp)
                 new_table[reverse_status[key]][key1] = reverse_status[temptemp]
+
         for nt in self.__variable:
             # 有的变元不能成为接收状态
-            if nt in self.__non_acc:
+            if self.__end_category[nt] in {'ignore'}:
                 continue
             cur_end = endings[nt]
             for (key, value) in new_table.items():
@@ -630,6 +773,13 @@ class e_NFA(FA):
         backup_status = 0
         current_status = 0
         backup_stack = []
+
+        # 定义三种处理的状态
+        #   1 正常读取状态，将读到的字符放入自动机
+        #   2 注释状态，丢弃所有字符直到出注释块
+        #   3 字符串状态，保存所有字符知道出字符串状态
+        # 状态的出入由
+
         while len(content) != 0:
             ch = content.pop()
 
@@ -702,7 +852,7 @@ if __name__ == '__main__':
     # lr.parse('( ( ( entity ( entity | entity | entity ) entity entity * ) | entity ) entity ) | entity entity *')
     # LR_tree = lr.tree
     enfa = e_NFA()
-    enfa.compile_regex('regex/regex_java.txt')
+    enfa.compile_regex('regex/regex_java_test.txt')
     enfa.write('FA/java_fa.dfa')
     enfa.read('FA/java_fa.dfa')
     # enfa.visualize_DFA()
