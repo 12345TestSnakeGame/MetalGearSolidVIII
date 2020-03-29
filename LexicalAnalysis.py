@@ -839,7 +839,7 @@ class e_NFA(FA):
 
         # 存放词法分析的结果
         lexical_result = []
-        registered_id = []
+        registered_id = {}
         backup_status = 0
         current_status = 0
         backup_stack = []
@@ -864,9 +864,27 @@ class e_NFA(FA):
                 elif current_status not in self.end:
                     raise Exception('LexicalAnalyzer:文法错误!\n' + ' '.join(list(map(str, lexical_result))))
                 else:
-                    lexical_result.append(self.end[current_status])
-                    # TODO
+                    symb = self.end[current_status]
+                    copy_stack = backup_stack
+                    copy_stack.reverse()
+                    content_stack += copy_stack
+                    cur_type = self.__end_category[symb]
+                    if cur_type == 'const':
+                        lexical_result.append((symb.s, ''.join(content_stack)))
+                    elif cur_type == 'id':
+                        string = ''.join(content_stack)
+                        if string in registered_id:
+                            lexical_result.append(('id', registered_id[string]))
+                        else:
+                            new_idx = len(registered_id)
+                            registered_id[string] = new_idx
+                            lexical_result.append(('id', new_idx))
+                    else:
+                        lexical_result.append((symb.s, ''))
                     current_status = 0
+                    backup_stack.clear()
+                    content_stack.clear()
+                    backup_status = 0
             else:
                 # 如果当前状态是一个终结状态，那么当前状态是一个潜在的成功识别符号
                 if current_status in self.end:
@@ -874,7 +892,9 @@ class e_NFA(FA):
                     if ch in self.table[current_status]:
                         # 当前路径是一个可行符号，先记录下来z
                         backup_status = current_status
-                        content_stack += backup_stack
+                        copy_stack = backup_stack
+                        copy_stack.reverse()
+                        content_stack += copy_stack
                         backup_stack.clear()
                         # 哨兵继续探索下一个状态
                         current_status = self.table[current_status][ch]
@@ -882,10 +902,26 @@ class e_NFA(FA):
                     # 无路可走了
                     else:
                         # 试着接收
-                        lexical_result.append(self.end[current_status])
-                        # todo
+                        symb = self.end[current_status]
+                        copy_stack = backup_stack
+                        copy_stack.reverse()
+                        content_stack += copy_stack
+                        cur_type = self.__end_category[symb]
+                        if cur_type == 'const':
+                            lexical_result.append((symb.s, ''.join(content_stack)))
+                        elif cur_type == 'id':
+                            string = ''.join(content_stack)
+                            if string in registered_id:
+                                lexical_result.append(('id', registered_id[string]))
+                            else:
+                                new_idx = len(registered_id)
+                                registered_id[string] = new_idx
+                                lexical_result.append(('id', new_idx))
+                        else:
+                            lexical_result.append((symb.s, ''))
                         current_status = 0
                         backup_stack.clear()
+                        content_stack.clear()
                         backup_status = 0
                         # 符号再压回去
                         content.append(ch)
@@ -898,10 +934,27 @@ class e_NFA(FA):
                             raise Exception
                         # 如果碰到过的话，回滚
                         else:
-                            lexical_result.append(self.end[backup_status])
+                            symb = self.end[backup_status]
+                            copy_stack = backup_stack
+                            copy_stack.reverse()
+                            content_stack += copy_stack
+                            cur_type = self.__end_category[symb]
+                            if cur_type == 'const':
+                                lexical_result.append((symb.s, ''.join(content_stack)))
+                            elif cur_type == 'id':
+                                string = ''.join(content_stack)
+                                if string in registered_id:
+                                    lexical_result.append(('id', registered_id[string]))
+                                else:
+                                    new_idx = len(registered_id)
+                                    registered_id[string] = new_idx
+                                    lexical_result.append(('id', new_idx))
+                            else:
+                                lexical_result.append((symb.s, ''))
                             content += backup_stack
                             current_status = 0
                             backup_stack = []
+                            content_stack = []
                             backup_status = 0
                     # 如果有路可走
                     else:
