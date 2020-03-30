@@ -1,5 +1,5 @@
-digit,letter_,digits,optionalExponent,optionalFraction,number,left_p,right_p,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,left_curly,right_curly,colon,semicolon,equal,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,if,else,for,basic_id,id,package,public,final,private,class,import,extends,annotate,override,try,catch,this,return,boolean,int,String,protected,access_control,qualifier,implements,interface,abstract,native,new,static,strictfp,synchronized,transient,volatile,break,continue,do,while,instanceof,switch,case,default,control_flow,throw,throws,error_handle,void,le,ge,ne,assignment,annotation,char,string
-0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,empty,left_parenthes,right_parenthes,star,or,[,],{,},<,>,:,;,=,comma,?,!,@,/,',"
+digit,letter_,digits,optionalExponent,optionalFraction,number,left_p,right_p,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,left_curly,right_curly,colon,semicolon,equal,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,if,else,for,basic_id,id,package,public,final,private,class,import,extends,annotate,override,try,catch,this,return,boolean,int,String,protected,access_control,qualifier,implements,interface,abstract,native,new,static,strictfp,synchronized,transient,volatile,break,continue,do,while,instanceof,switch,case,default,control_flow,throw,throws,error_handle,void,le,ge,ne,assignment,annotation,char,string,underline,Or_bool,And_bool
+0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,empty,left_parenthes,right_parenthes,star,or,[,],{,},<,>,:,;,=,comma,?,!,@,/,',",_,&
 # 常量
 ^digit - 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 ^letter_ - A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z | a | b | c | d | e | f | g | h | i | j | k | l | m | n | o | p | q | r | s | t | u | v | w | x | y | z
@@ -31,8 +31,11 @@ minus - -
 Star - star
 exclamation_mark - !
 Or - or
+Or_bool - or or
+And_bool - & &
 # 基本标识符,可以作普通变量名
-^basic_id - letter_ ( letter_ | digit ) *
+^underline - _
+^basic_id - letter_ ( letter_ | digit | underline ) *
 # 组合标识符,调用的函数名，或简单变量名
 &id - basic_id ( . basic_id ) *
 # 关键字 https://www.cnblogs.com/chenglc/p/6922834.html

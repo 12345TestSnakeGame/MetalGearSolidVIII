@@ -1,0 +1,90 @@
+digit,letter_,digits,optionalExponent,optionalFraction,number,left_p,right_p,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,left_curly,right_curly,colon,semicolon,equal,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,basic_id,id,public,protected,private,class,new,static,volatile,try,catch,throw,break,continue,return,do,while,if,else,for,switch,case,default,goto,typedef,const,register,static,return,virtual,auto,operator,case,friend,template,extern,inline,sizeof,asm,delete,this,short,int,long,float,double,char,union,enum,struct,unsigned,signed,void
+0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,empty,left_parenthes,right_parenthes,star,or,[,],{,},<,>,:,;,=,comma,?,!,@
+# 常量
+digit - 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+letter_ - A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z | a | b | c | d | e | f | g | h | i | j | k | l | m | n | o | p | q | r | s | t | u | v | w | x | y | z
+digits - digit digit *
+^optionalFraction - . digits | empty
+^optionalExponent - ( E ( + | - | empty ) digits ) | empty
+number - digits optionalFraction optionalExponent
+# 符号
+left_p - left_parenthes
+right_p - right_parenthes
+left_square_brace - [
+right_square_brace - ]
+dot - .
+left_curly - {
+right_curly - }
+colon - :
+semicolon - ;
+equal - =
+Comma - comma
+left_angle_brackets - <
+right_angle_brackets - >
+question_mark - ?
+plus - +
+minus - -
+Star - star
+exclamation_mark - !
+Or - or
+# 基本标识符
+^basic_id - letter_ ( letter_ | digit ) *
+# 组合标识符,调用的函数名，或简单变量名
+id - basic_id ( . basic_id ) *
+# 关键字 https://www.runoob.com/w3cnote/cpp-keyword-intro.html
+^public - p u b l i c
+^protected - p r o t e c t e d
+^private - p r i v a t e
+access_control - public | protected | private
+^class - c l a s s
+^new - n e w
+^static - s t a t i c
+^volatile - v o l a t i l e
+qualifier - class | new | static | volatile
+^try - t r y
+^catch - c a t c h
+^throw - t h r o w
+error_handle - catch | try | throw | throws
+^break - b r e a k
+^continue - c o n t i n u e
+^return - r e t u r n
+^do - d o
+^while - w h i l e
+^if - i f
+^else - e l s e
+^for - f o r
+^switch - s w i t c h
+^case - c a s e
+^default - d e f a u l t
+^goto - g o t o
+control_flow - break | continue | return | do | while | if | else | for | switch | case | default | goto
+^typedef - t y p e d e f
+^const - c o n s t
+^register - r e g i s t e r
+^static - s t a t i c
+^return - r e t u r n
+^virtual - v i r t u a l
+^auto - a u t o
+^operator - o p e r a t o r
+^case - c a s e
+^friend - f r i e n d
+^template - t e m p l a t e
+^extern - e x t e r n
+^inline - i n l i n e
+^sizeof - s i z e o f
+^asm - a s m
+^delete - d e l e t e
+this - t h i s
+# 基本类型
+^short - s h o r t
+^int - i n t
+^long - l o n g
+^float - f l o a t
+^double - d o u b l e
+^char - c h a r
+^union - u n i o n
+^enum - e n u m
+^struct - s t r u c t
+^unsigned - u n s i g n e d
+^signed - s i g n e d
+^void - v o i d

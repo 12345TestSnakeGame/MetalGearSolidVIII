@@ -1,4 +1,6 @@
+"dfafsda"
 package applications;
+/*1.1.1*/
 3.6 <= 4E45
 2203 != Stell.abc1d
 
@@ -8,7 +10,7 @@ import centralObject.Stellar;
 
 import circularOrbit.ConcreteCircularOrbit;
 import circularOrbit.StellarSystem;
-
+/*a*/
 import physicalObject.Planet;
 
 public class StellarSystemFactory extends AbstractFactory<Stellar, Planet>{

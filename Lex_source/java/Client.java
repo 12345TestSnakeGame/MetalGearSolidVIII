@@ -60,7 +60,7 @@ import track.Track;
  */
 public class Client {
 	
-	//macro
+
 	public static final int STELLAR = 1;
 	public static final int ATOM = 2;
 	public static final int SOCIAL = 3;
@@ -125,10 +125,8 @@ public class Client {
 		client.createConcrete("StellarSystem",new File("data/StellarSystem.txt"));
 		client.createConcrete("StellarSystem",new File("data/MyStellarSystemTest-1.txt"));
 		
-		//visualize test
-		//client.parseline("visualize 1");
 		
-		//get test
+
 		client.parseline("get");
 		client.parseline("get track 1");
 		client.parseline("get object 2-1");
@@ -149,18 +147,13 @@ public class Client {
 	 * the list stores different types of concrete, only one concrete can be on the table at one time
 	 */
 	
-	//current concrete's type
+	/*current concrete's type*/
 	private String type;
-	//current concrete's number
 	private int concreteNumber=-1;
-	//count existing concretes
 	private static int concretesCount=0;
-	//exsiting concretes
 	private static List<CircularOrbit<? extends CentralObject, ? extends PhysicalObject>> Concretes;
-	//record the types of existing concretes
 	private static List<String> concretesTypes;
 	
-	//the current concrete on the table
 	private CircularOrbit<? extends CentralObject, ? extends PhysicalObject> concrete;	
 	
 	StellarSystem concreteStellar;
@@ -200,7 +193,7 @@ public class Client {
 		concretesCount++;
 		concreteNumber=concretesCount-1;
 		Concretes.add(concrete);
-		concretesTypes.add(type);//record and store
+		concretesTypes.add(type);
 	}
 	/*
 	 * there are three choices right now:
@@ -231,7 +224,7 @@ public class Client {
 		concretesCount++;
 		concreteNumber=concretesCount-1;
 		Concretes.add(concrete);
-		concretesTypes.add(type);//record and store
+		concretesTypes.add(type);
 		return true;
 	}
 	/*
@@ -252,7 +245,7 @@ public class Client {
 			if(number<concreteNumber)
 				concreteNumber--;
 			Concretes.remove(number);
-			concretesTypes.remove(number);//remove the concrete
+			concretesTypes.remove(number);
 		}
 	}
 	/*
@@ -300,17 +293,14 @@ public class Client {
 	public static final int CHOOSE_BY_POSITION = 1;
 	public static final int CHOOSE_BY_NAME = 2;
 	public static final int CHOOSE_BY_NAMES = 2;
-	//add delete |relation center object track
 	public boolean add(int TYPE, List<String> params, List<String> position, int Config) {
 		if(TYPE==TRACK) {
-			return false;//unsupported
+			return false;
 		}else if(TYPE==CENTER) {
 			if(params.isEmpty())
 				return false;
 			if(type.equalsIgnoreCase("StellarSystem"))
 			{
-				//choose by tracknumber
-				//use position
 				StellarBuilder stellarBuilder = new StellarBuilder();
 				Stellar stellar = stellarBuilder.build(params);
 				return concreteStellar.setCenter(stellar);			
@@ -321,8 +311,7 @@ public class Client {
 				return concreteAtom.setCenter(atomCore);
 			}else if(type.equalsIgnoreCase("SocialNetworkCircle"))
 			{
-				//implement search object by name
-				//unsupported
+
 				return false;
 			}
 		}else if(TYPE==OBJECT) {
@@ -338,7 +327,7 @@ public class Client {
 				return concreteAtom.addObject(electron);
 			}else if(type.equalsIgnoreCase("SocialNetworkCircle"))
 			{
-				//TODO build relation
+
 				return false;
 			}
 		}else if(TYPE==RELATION) {
@@ -365,7 +354,7 @@ public class Client {
 				double weight = Double.valueOf(params.get(2));
 				if(weight<=0||weight>1)
 					return false;
-				//TODO 3 inputs
+
 				Person person1 = concreteSocial.getPerson(name1);
 				Person person2 = concreteSocial.getPerson(name2);
 				
@@ -417,13 +406,13 @@ public class Client {
 		}else if(TYPE==CENTER) {
 			if(type.equalsIgnoreCase("StellarSystem"))
 			{
-				//unsupported
+
 			}else if(type.equalsIgnoreCase("AtomStructure"))
 			{
-				//unsupported
+
 			}else if(type.equalsIgnoreCase("SocialNetworkCircle"))
 			{
-				//unsupported
+
 			}
 		}else if(TYPE==OBJECT) {
 			if(type.equalsIgnoreCase("StellarSystem"))
@@ -467,7 +456,7 @@ public class Client {
 				}
 			}else if(type.equalsIgnoreCase("AtomStructure"))
 			{
-				//unsupported
+
 			}else if(type.equalsIgnoreCase("SocialNetworkCircle"))
 			{
 				if(position.size()!=2)
@@ -493,7 +482,6 @@ public class Client {
 	/*
 	 * other APIs and calculations on the concretes, visualize
 	 */
-	//transit entropy distance difference
 	public boolean transit(List<String> params) {
 		if(params.size()!=3)
 			return false;
@@ -526,7 +514,7 @@ public class Client {
 		return concreteSocial.getDistance(person1, person2);
 	}
 	public double getEntropy() { return api.getObjectDistributionEntropy(concrete); }
-	public void visualize() { //in the GUI 
+	public void visualize() {
 		}
 	public void moveFor(List<String> params) {
 		if(params.size()!=1)
@@ -570,7 +558,6 @@ public class Client {
 	public static final int NUMBERS = 2;
 	public static final int POSITIONS = 3;
 	public static final int INFORMATIONS = 4;
-	//get |numbers, names, and other information
 	public void get(int TYPE, List<String> params) {
 		
 	}
@@ -589,37 +576,12 @@ public class Client {
 	 */
 	
 	public void parseline(String input) {
-		//-concrete switch-
-		//concrete replace
-		//-concrete create-
-		//======================================
-		//create [type] [file]* [name]*
-		//add [track]*
-		//delete [track|object] [number|object number]
-		//help (print help info)
-		//-visualize
-		//transit-AtomStructure
-		//move-StellarSystem
-		//buildrelation
-		//deleterelation
-		//getters
-		//  APIs getEntropy
-		//  	 getLogicalDistance
-		//  	 getPhysicalDistance
-		//  	 getDifference
-		// - get
-		// -	 track&objects-
-		// -	 center-
-		//	is/has 
-		//		 hasPosition...
-		//  
 		/*
 		 * get rules:
 		 * get [track|center|object]  	
 		 */
 		String[] inputs = input.split("\\s+");
 		
-		//illegal input
 		if(inputs.length==0)
 			return;
 		if(!commands.contains(inputs[0]))

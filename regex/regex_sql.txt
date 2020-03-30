@@ -1,0 +1,105 @@
+digit,letter_,digits,optionalExponent,optionalFraction,number,left_p,right_p,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,left_curly,right_curly,colon,semicolon,equal,Comma,question_mark,plus,minus,Star,exclamation_mark,basic_id,id,primary,key,references,foreign,null,table,create,insert,into,delete,update,set,drop,alter,select,from,where,distinct,all,and,or,not,natural,join,using,on,outer,union,intersect,except,as,order,by,desc,asc,between,max,count,exists,int,smallint,tinyint,mediumint,bigint,demical,numeric,float,double,bit,year,date,time,datetime,timestamp,char,varchar,tinytext,text,mediumtext,longtext,binary,varbinary,blob,enum,set
+0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,left_parenthes,right_parenthes,star,[,],{,},<,>,:,;,=,comma
+# 常量
+digit - 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+letter_ - A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z | a | b | c | d | e | f | g | h | i | j | k | l | m | n | o | p | q | r | s | t | u | v | w | x | y | z
+digits - digit digit *
+^optionalFraction - . digits | empty
+^optionalExponent - ( E ( + | - | empty ) digits ) | empty
+number - digits optionalFraction optionalExponent
+# 符号
+left_p - left_parenthes
+right_p - right_parenthes
+left_square_brace - [
+right_square_brace - ]
+dot - .
+left_curly - {
+right_curly - }
+colon - :
+semicolon - ;
+equal - =
+Comma - comma
+left_angle_brackets - <
+right_angle_brackets - >
+plus - +
+minus - -
+Star - star
+# 基本标识符
+^basic_id - letter_ ( letter_ | digit ) *
+# 组合标识符,调用的函数名，或简单变量名
+id - basic_id ( . basic_id ) *
+# 关键字 https://blog.csdn.net/QuinnNorris/article/details/71056445
+^primary - p r i m a r y
+^key - k e y
+^references - r e f e r e n c e s
+^foreign - f o r e i g n
+^null - n u l l
+specialkey - primary | key | references | foreign | null
+^table - t a b l e
+^create - c r e a t e
+^insert - i n s e r t
+^into - i n t o
+^delete - d e l e t e
+^update - u p d a t e
+^set - s e t
+^drop - d r o p
+^alter - a l t e r
+modification - table | create | insert | into | delete | update | set | drop | alter
+^select - s e l e c t
+^from - f r o m
+^where - w h e r e
+^distinct - d i s t i n c t
+^all - a l l
+^and - a n d
+^or - o r
+^not - n o t
+query - select | from | where | distinct | all | and | or | not
+^natural - n a t u r a l
+^join - j o i n
+^using - u s i n g
+^on - o n
+^outer - o u t e r
+joint - natural | join | using | on | o u t e r
+^union - u n i o n
+^intersect - i n t e r s e c t
+^except - e x c e p t
+setoperation - union | intersect | except
+^as - a s
+^order - o r d e r
+^by - b y
+^desc - d e s c
+^asc - a s c
+^between - b e t w e e n
+^max - m a x
+^count - c o u n t
+^exists - e x i s t s
+# 基本类型
+^int - i n t
+^smallint - s m a l l i n t
+^tinyint - t i n y i n t
+^mediumint - m e d i u m i n t
+^bigint - b i g i n t
+^demical - d e c i m a l
+^numeric - n u m e r i c
+^float - f l o a t
+^double - d o u b l e
+^bit - b i t
+numtype - int | smallint | tinyint | mediumint | bigint | demical | numeric | float | double | bit
+^year - y e a r
+^date - d a t e
+^time - t i m e
+^datetime - d a t e t i m e
+^timestamp - t i m e s t a m p
+timetype - year | date | time | datetime | timestamp
+^char - c h a r
+^varchar - v a r c h a r
+^tinytext - t i n y t e x t
+^text - t e x t
+^mediumtext - m e d i u m t e x t
+^longtext - l o n g t e x t
+chartype - char | varchar | tinytext | text | mediumtext | longtext
+^binary - b i n a r y
+^varbinary - v a r b i n a r y
+^blob - b l o b
+^enum - e n u m
+^set - s e t
