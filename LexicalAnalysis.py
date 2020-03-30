@@ -268,6 +268,7 @@ class e_NFA(FA):
         #   0 - 接受
         #   1 - 丢弃
         self.__special_endings = {}
+        self.__special_pair = {}
         self.__adjustable_endings = {'non_acc': set(), 'annotation': set(), 'str': set()}
 
     # 从文件中读取正则文法，然后构造自动机与转换表
@@ -411,7 +412,7 @@ class e_NFA(FA):
                 self.__end_category[self.non_terminals[delimiter_name]] = cur_type
 
                 self.__special_endings[delimiter_name] = (self.non_terminals[var_name], 0, 0)
-
+                self.__special_pair[self.non_terminals[delimiter_name]] = self.non_terminals[delimiter_name]
                 expression = []
                 for elements in delimiter_regex:
                     if elements in self.__regex_built_in:
@@ -443,6 +444,7 @@ class e_NFA(FA):
                 self.non_terminals[end_name] = n_terminal(end_name)
                 self.__end_category[self.non_terminals[start_name]] = cur_type
                 self.__end_category[self.non_terminals[end_name]] = cur_type
+                self.__special_pair[self.non_terminals[start_name]] = self.non_terminals[end_name]
 
                 self.__special_endings[start_name] = (self.non_terminals[var_name], 1, 1)
                 self.__special_endings[end_name] = (self.non_terminals[var_name], 2, 1)
@@ -804,9 +806,10 @@ class e_NFA(FA):
         end_category_ = self.__end_category
         special_endings_ = self.__special_endings
         adjustable_endings_ = self.__adjustable_endings
+        pairs = self.__special_pair
 
         result = [terminals_, non_terminals_, phrases, tabels, ends, backup_ends, end_category_,
-                  special_endings_, adjustable_endings_]
+                  special_endings_, adjustable_endings_, pairs]
 
 
         f = open(filename, 'wb')
@@ -827,6 +830,7 @@ class e_NFA(FA):
         self.__end_category = infos[6]
         self.__special_endings = infos[7]
         self.__adjustable_endings = infos[8]
+        self.__special_pair = infos[9]
 
     # 输入一个文本，生成词法分析的输出结果
     def lexical_analyse(self, input_filename: str, output_filename: str):
@@ -845,14 +849,55 @@ class e_NFA(FA):
         backup_stack = []
         content_stack = []
 
+        extra_stack = []
+        extra_statuses = []
+        extra_backup_status = -1
+
         # 定义三种处理的状态
         #   1 正常读取状态，将读到的字符放入自动机
         #   2 注释状态，丢弃所有字符直到出注释块
         #   3 字符串状态，保存所有字符知道出字符串状态
         # 状态的出入由
 
+        in_env = False
+        preserve_input = False
+        expect_status = -1
+
         while len(content) != 0:
             ch = content.pop()
+            if in_env:
+                # 万恶的转义字符
+                if ch == '\\':
+                    extra_stack.append(content.pop())
+                    continue
+                extra_stack.append(ch)
+                if 0 not in extra_statuses:
+                    extra_statuses.append(0)
+                newstatus = []
+                for idx in range(len(extra_statuses)):
+                    if ch in self.table[extra_statuses[idx]]:
+                        newstatus.append(self.table[extra_statuses[idx]][ch])
+                        temp_status = newstatus[-1]
+                        if temp_status in self.backup_end:
+                            cur = self.backup_end[temp_status]
+                        elif temp_status in self.end:
+                            cur = self.end[temp_status]
+                        else:
+                            continue
+                        if cur == expect_status:
+                            current_status = 0
+                            backup_stack = []
+                            backup_status = 0
+                            content_stack = []
+                            in_env = False
+                            if preserve_input:
+                                lexical_result.append(('str', ''.join(extra_stack)))
+                                extra_stack.clear()
+                            else:
+                                extra_stack.clear()
+                            break
+                extra_statuses = newstatus
+                continue
 
             # 先判断是否是停用词
             if ch in self.__stop_symbol:
@@ -961,15 +1006,30 @@ class e_NFA(FA):
                         # 那就走呗
                         backup_stack.insert(0, ch)
                         current_status = self.table[current_status][ch]
+
+            if current_status not in self.end:
+                pass
+            elif self.end[current_status] in self.__special_pair:
+                in_env = True
+                properties = self.__special_endings[self.end[current_status].s]
+                if properties[2] == 0:
+                    preserve_input = True
+                else:
+                    preserve_input = False
+                if properties[1] == 1:
+                    expect_status = self.__special_pair[self.end[current_status]]
+                elif properties[1] == 0:
+                    expect_status = self.end[current_status]
+                else:
+                    raise Exception('注释区块错误')
+                continue
         print(lexical_result)
 
     # TODO 读入与输出FA转换表
-    # TODO 对于不同符号的不同行为，如const，id与关键字，会输出不同的token二元组
     # TODO 恐慌模式错误恢复
     # TODO 设计测试用例包括：拼写错误
     # TODO DFA中消除无效状态
     # TODO 如果回车作为一个符号而不是停用词，词法分析器的行为是一致的吗？
-    # TODO 注释与字符串的解决方法：符号可以包含着行为。行为不一定是移入
 
 
 if __name__ == '__main__':
@@ -982,5 +1042,5 @@ if __name__ == '__main__':
     # enfa.write('FA/java_fa.dfa')
     enfa.read('FA/java_fa.dfa')
     # enfa.visualize_DFA()
-    enfa.lexical_analyse('Lex_source/java/StellarSystemFactory.java', 'code_C_result.txt')
+    enfa.lexical_analyse('Lex_source/java/Client.java', 'code_C_result.txt')
     pass
