@@ -245,6 +245,9 @@ class e_NFA(FA):
         self.end = {}
         self.backup_end = {}
 
+        # 每个正则文法的FA表
+        self.FAs = {}
+
         self.__end_category = {}
         # const         -   @   获得常量值
         # str           -   ;   获得字符串值
@@ -545,6 +548,10 @@ class e_NFA(FA):
         # 实际上将正则表达式转换为自动机，通用的方法是直接转换为epsilon-NFA，然后直接子集构造法转换为DFA
         # 因此，另外两个FA的类其实就没有用了---已经删掉了
         tab, endings = self.__subset_construct()
+        temp_FA = {}
+        for (key, value) in self.phrases.items():
+            temptab, tempendings = self.__single_subset_construct(key)
+            temp_FA[key] = [temptab, tempendings]
         # 写到文件里看看长啥样
         # f = open('result.txt', 'w', encoding='utf-8')
         # for (key, value) in tab.items():
@@ -573,7 +580,6 @@ class e_NFA(FA):
                 temp.sort()
                 temptemp = tuple(temp)
                 new_table[reverse_status[key]][key1] = reverse_status[temptemp]
-
         for nt in self.__variable:
             # 有的变元不能成为接收状态
             if self.__end_category[nt] in {'ignore'}:
@@ -591,8 +597,32 @@ class e_NFA(FA):
                 original_set = set(status[key])
                 if cur_end in original_set:
                     end_status[key] = nt
-        print(new_table)
-        print(end_status)
+        for (key, value) in temp_FA.items():
+            # 重整转换表
+            _new_table = {}
+            _end_status = {}
+            _backup_end_status = {}
+            # 存放旧状态（复杂的子集）与新状态（计数）之间的对应关系
+            _status = {}
+            _reverse_status = {}
+            _count = 0
+            for (key1, value1) in value[0].items():
+                _new_table[_count] = {}
+                _status[_count] = key1
+                _reverse_status[key1] = _count
+                _count = _count + 1
+            for (key1, value1) in value[0].items():
+                for (key2, value2) in value1.items():
+                    temp = list(value2)
+                    temp.sort()
+                    temptemp = tuple(temp)
+                    _new_table[_reverse_status[key1]][key2] = _reverse_status[temptemp]
+            cur_end = value[1]
+            for (key1, value1) in _new_table.items():
+                original_set = set(_status[key1])
+                if cur_end in original_set:
+                    _end_status[key1] = key
+            self.FAs[key] = [_new_table, _end_status]
         self.__table = new_table
         for (key, value) in self.__table.items():
             self.table[key] = {}
@@ -609,6 +639,78 @@ class e_NFA(FA):
         for (key, value) in self.phrases.items():
             start_node.add_node(Edge('empty'), value.start)
             end_nodes[key] = value.end
+
+        # 绘图观察
+        # temp_phrase = Phrase(self.fa_node)
+        # temp_phrase.start = start_node
+        # self.__visualize_phrase(temp_phrase)
+
+        # 类似于广度优先搜索
+        to_explore = set()
+        explored = set()
+        exploring = set()
+        st = tuple(list(self.__eclosure(start_node)))
+        exploring.add(st)
+        fa_table = {}
+        while len(exploring) != 0:
+            # 对每个状态子集
+            for s in exploring:
+                s = list(s[:])
+                # 对状态子集中的每个状态
+                # 所有状态的所有可达状态
+                switch_table = {}
+                for k in s:
+                    for (key, value) in k.next.items():
+                        # 跳过所有空转移。closure保证了不会有子集之间的空转移
+                        if key.symbol == 'empty':
+                            continue
+                        if key in switch_table:
+                            switch_table[key] = switch_table[key].union(set(value))
+                        else:
+                            switch_table[key] = set(value)
+
+                # closure补全
+                for (key, value) in switch_table.items():
+                    closure_subset = set()
+                    for incomplete_set in value:
+                        closure_subset = closure_subset.union(self.__eclosure(incomplete_set))
+                    switch_table[key] = closure_subset
+
+                # 将新触及的状态子集填写进转换表
+                for (key, value) in switch_table.items():
+                    # 未探索过的状态加入探索集合
+                    set_value = list(value)
+                    set_value.sort()
+                    set_value = tuple(set_value)
+                    if set_value not in explored and value not in exploring:
+                        to_explore.add(set_value)
+                    origin = [s]
+                    origin.sort()
+                    o = tuple(*origin)
+                    if o in fa_table:
+                        fa_table[o][key] = value
+                    else:
+                        fa_table[o] = {key: value}
+                # 如果switch_table里面什么都没有，说明已经到了结尾状态
+                if len(switch_table) == 0:
+                    origin = [s]
+                    origin.sort()
+                    o = tuple(*origin)
+                    fa_table[o] = {}
+                s.sort()
+                s = tuple(s)
+                explored.add(s)
+            exploring = to_explore.copy()
+            to_explore.clear()
+        return fa_table, end_nodes
+
+    def __single_subset_construct(self, s: symbol):
+        # 用一个结点与所有开始状态连接，并记录所有结束状态
+        start_node = self.phrases[s].start
+        end_nodes = self.phrases[s].end
+        # for (key, value) in self.phrases.items():
+        #     start_node.add_node(Edge('empty'), value.start)
+        #     end_nodes[key] = value.end
 
         # 绘图观察
         # temp_phrase = Phrase(self.fa_node)
@@ -737,6 +839,18 @@ class e_NFA(FA):
         d.view()
         # d.render('test-output/DFA_.gv', view=True)
 
+    def visualize_single(self, tables, ends):
+        d = Digraph(comment='DFA')
+        for (key, value) in tables.items():
+            if key in ends:
+                d.node(str(key), str(key) + '-' + str(ends[key]), color='red')
+            else:
+                d.node(str(key), str(key))
+        for (key, value) in tables.items():
+            for (key1, value1) in value.items():
+                d.edge(str(key), str(value1), str(key1))
+        d.view()
+
     # 根据treenode构造phrase
     def __recursive_traverse(self, tree_node: {}, entities: []):
         for (key, value) in tree_node.items():
@@ -794,7 +908,6 @@ class e_NFA(FA):
     def __SDT_compile(self):
         pass
 
-    # TODO DFA的序列化和反序列化还有很多工作要做，比如说，读取序列化对象后，应该仍然能够可视化
     def write(self, filename: str):
 
         terminals_ = self.terminals
@@ -807,9 +920,11 @@ class e_NFA(FA):
         special_endings_ = self.__special_endings
         adjustable_endings_ = self.__adjustable_endings
         pairs = self.__special_pair
+        internal_table = self.__table
+        FAS = self.FAs
 
         result = [terminals_, non_terminals_, phrases, tabels, ends, backup_ends, end_category_,
-                  special_endings_, adjustable_endings_, pairs]
+                  special_endings_, adjustable_endings_, pairs, internal_table, FAS]
 
 
         f = open(filename, 'wb')
@@ -831,6 +946,8 @@ class e_NFA(FA):
         self.__special_endings = infos[7]
         self.__adjustable_endings = infos[8]
         self.__special_pair = infos[9]
+        self.__table = infos[10]
+        self.FAs = infos[11]
 
     # 输入一个文本，生成词法分析的输出结果
     def lexical_analyse(self, input_filename: str, output_filename: str):
@@ -1042,5 +1159,11 @@ if __name__ == '__main__':
     # enfa.write('FA/java_fa.dfa')
     enfa.read('FA/java_fa.dfa')
     # enfa.visualize_DFA()
-    enfa.lexical_analyse('Lex_source/java/Client.java', 'code_C_result.txt')
+    count = 0
+    for (key, value) in enfa.FAs.items():
+        if count == 51:
+            enfa.visualize_single(value[0], value[1])
+        count += 1
+        print(' ')
+    # enfa.lexical_analyse('Lex_source/java/Client.java', 'code_C_result.txt')
     pass
