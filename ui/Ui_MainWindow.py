@@ -8,7 +8,7 @@ from PyQt5.QtGui import QIcon
 class MainUi(QMainWindow):
 
     def __init__(self):
-        super().__init__()
+        super().__init__() 
 
         self.initUI()
 
