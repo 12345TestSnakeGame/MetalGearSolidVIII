@@ -908,6 +908,14 @@ class e_NFA(FA):
     def __SDT_compile(self):
         pass
 
+    def str_table(self):
+        symbol_index = {}
+        count = 0
+        for (key, value) in self.terminals.items():
+            symbol_index[key] = count
+            count += 1
+        return self.table, symbol_index
+
     def write(self, filename: str):
 
         terminals_ = self.terminals
@@ -949,12 +957,8 @@ class e_NFA(FA):
         self.__table = infos[10]
         self.FAs = infos[11]
 
-    # 输入一个文本，生成词法分析的输出结果
-    def lexical_analyse(self, input_filename: str, output_filename: str):
-        f = open(input_filename, 'r', encoding='utf-8')
-        content = f.read()
-        f.close()
-        content = list(content)
+    def Lexical(self, codes: []):
+        content = list(codes)
         content.reverse()
         content = ['$'] + content
 
@@ -963,18 +967,27 @@ class e_NFA(FA):
         registered_id = {}
         backup_status = 0
         current_status = 0
+        # backup，就是存储不一定属于合法词的字符序列。content是一定是合法词的字符序列
         backup_stack = []
         content_stack = []
 
+        # 原输入
+        original_input = []
+
+        # 丢弃掉的错误输入
+        error_stack = []
+        in_error = False
+
+        # 行号计数
+        line_count = 1
+
         extra_stack = []
         extra_statuses = []
-        extra_backup_status = -1
 
         # 定义三种处理的状态
         #   1 正常读取状态，将读到的字符放入自动机
         #   2 注释状态，丢弃所有字符直到出注释块
         #   3 字符串状态，保存所有字符知道出字符串状态
-        # 状态的出入由
 
         in_env = False
         preserve_input = False
@@ -982,6 +995,8 @@ class e_NFA(FA):
 
         while len(content) != 0:
             ch = content.pop()
+            if ch == '\n':
+                line_count = line_count + 1
             if in_env:
                 # 万恶的转义字符
                 if ch == '\\':
@@ -1009,6 +1024,10 @@ class e_NFA(FA):
                             in_env = False
                             if preserve_input:
                                 lexical_result.append(('str', ''.join(extra_stack)))
+                                if extra_stack[-1] == '\"':
+                                    original_input.append('\"' + ''.join(extra_stack))
+                                else:
+                                    original_input.append('\'' + ''.join(extra_stack))
                                 extra_stack.clear()
                             else:
                                 extra_stack.clear()
@@ -1016,54 +1035,23 @@ class e_NFA(FA):
                 extra_statuses = newstatus
                 continue
 
-            # 先判断是否是停用词
-            if ch in self.__stop_symbol:
-                # 是停用词代表不会进入自动机，看自动机当前状态
-                # 如果自动机在初始状态
-                if current_status == 0:
-                    # 直接跳过
-                    continue
-                elif current_status not in self.end:
-                    raise Exception('LexicalAnalyzer:文法错误!\n' + ' '.join(list(map(str, lexical_result))))
-                else:
-                    symb = self.end[current_status]
-                    copy_stack = backup_stack
-                    copy_stack.reverse()
-                    content_stack += copy_stack
-                    cur_type = self.__end_category[symb]
-                    if cur_type == 'const':
-                        lexical_result.append((symb.s, ''.join(content_stack)))
-                    elif cur_type == 'id':
-                        string = ''.join(content_stack)
-                        if string in registered_id:
-                            lexical_result.append(('id', registered_id[string]))
-                        else:
-                            new_idx = len(registered_id)
-                            registered_id[string] = new_idx
-                            lexical_result.append(('id', new_idx))
-                    else:
-                        lexical_result.append((symb.s, ''))
-                    current_status = 0
-                    backup_stack.clear()
-                    content_stack.clear()
-                    backup_status = 0
-            else:
-                # 如果当前状态是一个终结状态，那么当前状态是一个潜在的成功识别符号
-                if current_status in self.end:
-                    # 如果有可行路径，走
-                    if ch in self.table[current_status]:
-                        # 当前路径是一个可行符号，先记录下来z
-                        backup_status = current_status
-                        copy_stack = backup_stack
-                        copy_stack.reverse()
-                        content_stack += copy_stack
-                        backup_stack.clear()
-                        # 哨兵继续探索下一个状态
-                        current_status = self.table[current_status][ch]
-                        backup_stack.insert(0, ch)
-                    # 无路可走了
-                    else:
-                        # 试着接收
+            # 如果当前处于错误恢复状态，同时又找到了终止状态
+            if in_error and current_status in self.end:
+                in_error = False
+                lexical_result.append((''.join(error_stack), 'error', line_count))
+                original_input.append(' ')
+                error_stack.clear()
+
+            try:
+                # 先判断是否是停用词。至少如果是停用词的话，要么接收要么报错
+                if ch in self.__stop_symbol:
+                    # 是停用词代表不会进入自动机，看自动机当前状态
+                    # 如果自动机在初始状态
+                    if current_status == 0:
+                        # 直接跳过
+                        continue
+                    elif current_status in self.end:
+                        # 如果当前状态是终结状态
                         symb = self.end[current_status]
                         copy_stack = backup_stack
                         copy_stack.reverse()
@@ -1071,58 +1059,182 @@ class e_NFA(FA):
                         cur_type = self.__end_category[symb]
                         if cur_type == 'const':
                             lexical_result.append((symb.s, ''.join(content_stack)))
+                            original_input.append(''.join(content_stack))
                         elif cur_type == 'id':
                             string = ''.join(content_stack)
                             if string in registered_id:
                                 lexical_result.append(('id', registered_id[string]))
+                                original_input.append(''.join(content_stack))
                             else:
                                 new_idx = len(registered_id)
                                 registered_id[string] = new_idx
                                 lexical_result.append(('id', new_idx))
+                                original_input.append(''.join(content_stack))
                         else:
                             lexical_result.append((symb.s, ''))
+                            original_input.append(''.join(content_stack))
                         current_status = 0
                         backup_stack.clear()
                         content_stack.clear()
                         backup_status = 0
-                        # 符号再压回去
+                    elif backup_status != 0:
+                        symb = self.end[backup_status]
+
+                        # 把content_stack的内容压回去
+                        # 先把刚刚读出来的符号压回去
                         content.append(ch)
-                # 如果当前状态不是终结状态，继续向前探索，备份好输入
-                else:
-                    # 如果无路可走了
-                    if ch not in self.table[current_status]:
-                        # 如果从初始状态到当前状态还没有碰到过可接受状态
-                        if backup_status == 0:
-                            raise Exception
-                        # 如果碰到过的话，回滚
+                        if ch == '\n':
+                            line_count -= 1
+                        # 然后把存放在content_stack中的字符压回去，要反序
+                        content_stack.reverse()
+                        content += content_stack
+                        iii = content_stack.count('\n')
+                        line_count -= iii
+
+                        # 存放在backup_stack中的内容成为接收的字符串。需要反序
+                        copy_stack = backup_stack
+                        copy_stack.reverse()
+                        content_stack = copy_stack
+                        cur_type = self.__end_category[symb]
+
+                        if cur_type == 'const':
+                            lexical_result.append((symb.s, ''.join(content_stack)))
+                            original_input.append(''.join(content_stack))
+                        elif cur_type == 'id':
+                            string = ''.join(content_stack)
+                            if string in registered_id:
+                                lexical_result.append(('id', registered_id[string]))
+                                original_input.append(''.join(content_stack))
+                            else:
+                                new_idx = len(registered_id)
+                                registered_id[string] = new_idx
+                                lexical_result.append(('id', new_idx))
+                                original_input.append(''.join(content_stack))
                         else:
-                            symb = self.end[backup_status]
+                            lexical_result.append((symb.s, ''))
+                            original_input.append(''.join(content_stack))
+                        current_status = 0
+                        backup_stack = []
+                        content_stack = []
+                        backup_status = 0
+                    else:
+                        # 读取到了停用词，当前状态既不是初始状态也不是终结状态，而是读取某个文法到一半的状态。
+                        raise Exception('LexicalAnalyzer:文法错误!\n' + ch + '  '.join(list(map(str, lexical_result))) +
+                                        '当前状态：' + str(current_status) + ' content_stack:' + ''.join(content_stack)
+                                        + ' backup_stack:' + ''.join(backup_stack))
+                else:
+                    # 如果当前状态是一个终结状态，那么当前状态是一个潜在的成功识别符号
+                    if current_status in self.end:
+                        # 如果有可行路径，根据最长匹配原则，需要继续探索，同时记录下当前位置
+                        if ch in self.table[current_status]:
+                            # 当前路径是一个可行符号，先记录下来z
+                            backup_status = current_status
+                            # 把未确认内容保存，注意要倒序
+                            copy_stack = backup_stack
+                            copy_stack.reverse()
+                            content_stack += copy_stack
+                            backup_stack.clear()
+                            # 哨兵继续探索下一个状态
+                            current_status = self.table[current_status][ch]
+                            backup_stack.insert(0, ch)
+                        # 无路可走了
+                        else:
+                            # 试着接收
+                            symb = self.end[current_status]
                             copy_stack = backup_stack
                             copy_stack.reverse()
                             content_stack += copy_stack
                             cur_type = self.__end_category[symb]
                             if cur_type == 'const':
                                 lexical_result.append((symb.s, ''.join(content_stack)))
+                                original_input.append(''.join(content_stack))
                             elif cur_type == 'id':
                                 string = ''.join(content_stack)
                                 if string in registered_id:
                                     lexical_result.append(('id', registered_id[string]))
+                                    original_input.append(''.join(content_stack))
                                 else:
                                     new_idx = len(registered_id)
                                     registered_id[string] = new_idx
                                     lexical_result.append(('id', new_idx))
+                                    original_input.append(''.join(content_stack))
                             else:
                                 lexical_result.append((symb.s, ''))
-                            content += backup_stack
+                                original_input.append(''.join(content_stack))
                             current_status = 0
-                            backup_stack = []
-                            content_stack = []
+                            backup_stack.clear()
+                            content_stack.clear()
                             backup_status = 0
-                    # 如果有路可走
+                            # 符号再压回去
+                            content.append(ch)
+                            if ch == '\n':
+                                line_count -= 1
+                    # 如果当前状态不是终结状态，继续向前探索，备份好输入
                     else:
-                        # 那就走呗
-                        backup_stack.insert(0, ch)
-                        current_status = self.table[current_status][ch]
+                        # 如果无路可走了
+                        if ch not in self.table[current_status]:
+                            # 如果从初始状态到当前状态还没有碰到过可接受状态
+                            if backup_status == 0:
+                                # TODO 读取的是合法字符，但当前状态不是终止状态，当前符号也不是可接受符号，且来的路上也没有碰到过可接受状态
+                                raise Exception('当前状态：' + str(current_status) + ' 已读取符号:' + ''.join(content_stack) + ' backup_stack:' + ''.join(backup_stack))
+                            # 如果碰到过的话，回滚
+                            else:
+                                symb = self.end[backup_status]
+
+                                # 把content_stack的内容压回去
+                                # 先把刚刚读出来的符号压回去
+                                content.append(ch)
+                                if ch == '\n':
+                                    line_count -= 1
+                                # 然后把存放在backup_stack中的字符压回去，要反序
+                                content += backup_stack
+                                iii = backup_stack.count('\n')
+                                line_count -= iii
+
+                                # 存放在content_stack中的内容成为接收的字符串。
+                                cur_type = self.__end_category[symb]
+
+                                if cur_type == 'const':
+                                    lexical_result.append((symb.s, ''.join(content_stack)))
+                                    original_input.append(''.join(content_stack))
+                                elif cur_type == 'id':
+                                    string = ''.join(content_stack)
+                                    if string in registered_id:
+                                        lexical_result.append(('id', registered_id[string]))
+                                        original_input.append(''.join(content_stack))
+                                    else:
+                                        new_idx = len(registered_id)
+                                        registered_id[string] = new_idx
+                                        lexical_result.append(('id', new_idx))
+                                        original_input.append(''.join(content_stack))
+                                else:
+                                    lexical_result.append((symb.s, ''))
+                                    original_input.append(''.join(content_stack))
+                                current_status = 0
+                                backup_stack = []
+                                content_stack = []
+                                backup_status = 0
+                        # 如果有路可走
+                        else:
+                            # 那就走呗
+                            backup_stack.insert(0, ch)
+                            current_status = self.table[current_status][ch]
+            except Exception as e:
+                # 每次出现异常，就说明存储在backup_stack中的序列无法作为合法的词，所以一定会忽略一个
+                in_error = True
+                if len(backup_stack) == 0:
+                    ignore_ch = ch
+                else:
+                    ignore_ch = backup_stack.pop()
+                    assert len(content_stack) == 0
+                    content.append(ch)
+                    while len(backup_stack) != 0:
+                        content.append(backup_stack.pop())
+                    current_status = 0
+                    backup_status = 0
+                error_stack.append(ignore_ch)
+            finally:
+                pass
 
             if current_status not in self.end:
                 pass
@@ -1138,9 +1250,24 @@ class e_NFA(FA):
                 elif properties[1] == 0:
                     expect_status = self.end[current_status]
                 else:
-                    raise Exception('注释区块错误')
+                    raise Exception('注释区块错误-' + '当前状态：' + str(current_status) + ' 已读取符号:'
+                                    + ''.join(content_stack) + ' backup_stack:' + ''.join(backup_stack))
                 continue
+
         print(lexical_result)
+        print(registered_id)
+        id_index = {}
+        for (key, value) in registered_id.items():
+            id_index[value] = key
+        return original_input, lexical_result, id_index
+
+    # 输入一个文本，生成词法分析的输出结果
+    def lexical_analyse(self, input_filename: str, output_filename: str):
+        f = open(input_filename, 'r', encoding='utf-8')
+        content = f.read()
+        f.close()
+        self.Lexical(content)
+
 
     # TODO 读入与输出FA转换表
     # TODO 恐慌模式错误恢复
@@ -1150,20 +1277,10 @@ class e_NFA(FA):
 
 
 if __name__ == '__main__':
-    # c = cfg_readfile('cfg_regex.txt')
-    # lr = LR_Parser(c)
-    # lr.parse('( ( ( entity ( entity | entity | entity ) entity entity * ) | entity ) entity ) | entity entity *')
-    # LR_tree = lr.tree
     enfa = e_NFA()
-    # enfa.compile_regex('regex/regex_java.txt')
-    # enfa.write('FA/java_fa.dfa')
-    enfa.read('FA/java_fa.dfa')
-    # enfa.visualize_DFA()
-    count = 0
-    for (key, value) in enfa.FAs.items():
-        if count == 51:
-            enfa.visualize_single(value[0], value[1])
-        count += 1
-        print(' ')
-    # enfa.lexical_analyse('Lex_source/java/Client.java', 'code_C_result.txt')
+    enfa.compile_regex('regex/regex_java.txt')
+    enfa.write('FA/java_fa.dfa')
+    # enfa.read('FA/java_fa.dfa')
+    # enfa.read('C:/Users/MSI-PC/Desktop/Compilers_Lab/FA/java_fa.dfa')
+    enfa.lexical_analyse('Lex_source/java/StellarSystemFactory.java', 'code_C_result.txt')
     pass
