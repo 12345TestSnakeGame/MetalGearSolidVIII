@@ -17,7 +17,7 @@ SLP - left_parenthes
 SRP - right_parenthes
 left_square_brace - [
 right_square_brace - ]
-#dot - .
+dot - .
 LP - {
 RP - }
 colon - :
@@ -44,9 +44,9 @@ Or_bool - or or
 And_bool - & &
 # 基本标识符,可以作普通变量名
 ^underline - _
-^basic_id - letter_ ( letter_ | digit | underline ) *
+&id - ( letter_ | underline ) ( letter_ | digit | underline ) *
 # 组合标识符,调用的函数名，或简单变量名
-&id - basic_id ( . basic_id ) *
+#id - basic_id ( . basic_id ) *
 # 关键字 https://www.cnblogs.com/chenglc/p/6922834.html
 PUBLIC - p u b l i c
 PROTECTED - p r o t e c t e d

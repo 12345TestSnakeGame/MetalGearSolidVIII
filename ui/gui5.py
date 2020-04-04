@@ -324,7 +324,15 @@ class Ui_MainWindow(QMainWindow):
                 item2 = QStandardItem('<' + lexical[row][0] + ',' + str(id_table[lexical[row][1]]) + '>')
             else:
                 item1 = QStandardItem(original[row])
-                item2 = QStandardItem('<' + lexical[row][0] + ',' + str(lexical[row][1]) + '>')
+                if len(lexical[row][1]) == 0:
+                    string = ''
+                elif lexical[row][1][-1] == '\'':
+                    string = '\'' + lexical[row][1]
+                elif lexical[row][1][-1] == '\"':
+                    string = '\"' + lexical[row][1]
+                else:
+                    string = str(lexical[row][1])
+                item2 = QStandardItem('<' + lexical[row][0] + ',' + string + '>')
             tmodel.setItem(row, 0, item1)
             tmodel.setItem(row, 1, item2)
         self.tableView_2.setModel(tmodel)

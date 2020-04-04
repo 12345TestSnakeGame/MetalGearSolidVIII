@@ -40,7 +40,7 @@ IADD - + =
 IMINUS - - =
 ^underline - _
 # 基本标识符
-basic_id - letter_ ( letter_ | digit | underline ) *
+basic_id - ( letter_ | underline ) ( letter_ | digit | underline ) *
 # 关键字 http://c.biancheng.net/cpp/html/797.html
 auto - a u t o
 short - s h o r t

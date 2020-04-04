@@ -1012,6 +1012,12 @@ class e_NFA(FA):
             if ch == '\n':
                 line_count = line_count + 1
             if in_env:
+                if in_error and current_status in self.end:
+                    in_error = False
+                    reline = True
+                    lexical_result.append((''.join(error_stack), '词法错误！', errorline))
+                    original_input.append(' ')
+                    error_stack.clear()
                 # 万恶的转义字符
                 if ch == '\\':
                     extra_stack.append(content.pop())
@@ -1100,16 +1106,13 @@ class e_NFA(FA):
                         content.append(ch)
                         if ch == '\n':
                             line_count -= 1
-                        # 然后把存放在content_stack中的字符压回去，要反序
-                        content_stack.reverse()
-                        content += content_stack
-                        iii = content_stack.count('\n')
+                        # 然后把存放在backup_stack中的字符压回去，要反序
+                        content += backup_stack
+                        iii = backup_stack.count('\n')
                         line_count -= iii
 
-                        # 存放在backup_stack中的内容成为接收的字符串。需要反序
-                        copy_stack = backup_stack
-                        copy_stack.reverse()
-                        content_stack = copy_stack
+                        # 存放在content_stack中的内容成为接收的字符串。
+                        content_stack = content_stack
                         cur_type = self.__end_category[symb]
 
                         if cur_type == 'const':
@@ -1306,9 +1309,9 @@ class e_NFA(FA):
 
 if __name__ == '__main__':
     enfa = e_NFA()
-    # enfa.compile_regex('regex/regex_py.txt')
-    # enfa.write('FA/py_fa.dfa')
+    # enfa.compile_regex('regex/regex_java.txt')
+    # enfa.write('FA/java_fa.dfa')
     enfa.read('FA/java_fa.dfa')
     # enfa.read('C:/Users/MSI-PC/De sktop/Compilers_Lab/FA/java_fa.dfa')
-    enfa.lexical_analyse('Lex_source/java/test.txt', 'code_C_result.txt')
+    enfa.lexical_analyse('Lex_source/java/error.java', 'code_C_result.txt')
     pass
