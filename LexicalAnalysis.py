@@ -274,8 +274,7 @@ class e_NFA(FA):
         self.__special_pair = {}
         self.__adjustable_endings = {'non_acc': set(), 'annotation': set(), 'str': set()}
 
-    # 从文件中读取正则文法，然后构造自动机与转换表
-    def compile_regex(self, filename: str):
+    def compile(self, s):
         time_start = time.time()
         # 正则文法的规则：
         # 第一行：所有的非终结符
@@ -286,10 +285,6 @@ class e_NFA(FA):
         #   由'#'开头的所有行都会忽略掉，作为注释
         #   由'^'开头的行，其符号只作为变元存在，而不能作为接收状态
         #   如果与正则表达式的符号冲突，如括号，|，在前面加个反斜杠\
-        # TODO 需要更新了
-        f = open(filename, 'r', encoding='utf-8')
-        s = f.readlines()
-        f.close()
 
         # 预处理，去除行尾回车和注释行
         lines = []
@@ -630,6 +625,23 @@ class e_NFA(FA):
                 self.table[key][key1.symbol] = value1
         self.end = end_status
         self.backup_end = backup_end_status
+
+    # 从文件中读取正则文法，然后构造自动机与转换表
+    def compile_regex(self, filename: str):
+        # 正则文法的规则：
+        # 第一行：所有的非终结符
+        # 第二行：所有的终结符
+        # 剩余行：所有的正则文法
+        #   在后的正则文法会覆盖前面的正则文法，解决了关键字的问题（没有采用表的方法）
+        #   右部中出现的非终结符必须在前面的行出现过
+        #   由'#'开头的所有行都会忽略掉，作为注释
+        #   由'^'开头的行，其符号只作为变元存在，而不能作为接收状态
+        #   如果与正则表达式的符号冲突，如括号，|，在前面加个反斜杠\
+        # TODO 需要更新了
+        f = open(filename, 'r', encoding='utf-8')
+        s = f.readlines()
+        f.close()
+        self.compile(s)
 
     # 子集构造法
     def __subset_construct(self):
@@ -992,6 +1004,8 @@ class e_NFA(FA):
         in_env = False
         preserve_input = False
         expect_status = -1
+        errorline = 0
+        reline = True
 
         while len(content) != 0:
             ch = content.pop()
@@ -1038,7 +1052,8 @@ class e_NFA(FA):
             # 如果当前处于错误恢复状态，同时又找到了终止状态
             if in_error and current_status in self.end:
                 in_error = False
-                lexical_result.append((''.join(error_stack), 'error', line_count))
+                reline = True
+                lexical_result.append((''.join(error_stack), '词法错误！', errorline))
                 original_input.append(' ')
                 error_stack.clear()
 
@@ -1222,6 +1237,8 @@ class e_NFA(FA):
             except Exception as e:
                 # 每次出现异常，就说明存储在backup_stack中的序列无法作为合法的词，所以一定会忽略一个
                 in_error = True
+                if reline:
+                    errorline = line_count
                 if len(backup_stack) == 0:
                     ignore_ch = ch
                 else:
@@ -1254,6 +1271,19 @@ class e_NFA(FA):
                                     + ''.join(content_stack) + ' backup_stack:' + ''.join(backup_stack))
                 continue
 
+        # 如果还在注释/字符串环境中
+        if in_env:
+            if preserve_input:
+                lexical_result.append(('', '字符串环境错误！', 0))
+                original_input.append(' ')
+            else:
+                lexical_result.append(('', '注释环境错误！', 0))
+                original_input.append(' ')
+        elif len(backup_stack) != 0:
+            backup_stack.reverse()
+            lexical_result.append((''.join(backup_stack), '词法错误！', errorline))
+            original_input.append(' ')
+
         print(lexical_result)
         print(registered_id)
         id_index = {}
@@ -1269,8 +1299,6 @@ class e_NFA(FA):
         self.Lexical(content)
 
 
-    # TODO 读入与输出FA转换表
-    # TODO 恐慌模式错误恢复
     # TODO 设计测试用例包括：拼写错误
     # TODO DFA中消除无效状态
     # TODO 如果回车作为一个符号而不是停用词，词法分析器的行为是一致的吗？
@@ -1278,9 +1306,9 @@ class e_NFA(FA):
 
 if __name__ == '__main__':
     enfa = e_NFA()
-    enfa.compile_regex('regex/regex_java.txt')
-    enfa.write('FA/java_fa.dfa')
-    # enfa.read('FA/java_fa.dfa')
-    # enfa.read('C:/Users/MSI-PC/Desktop/Compilers_Lab/FA/java_fa.dfa')
-    enfa.lexical_analyse('Lex_source/java/StellarSystemFactory.java', 'code_C_result.txt')
+    # enfa.compile_regex('regex/regex_py.txt')
+    # enfa.write('FA/py_fa.dfa')
+    enfa.read('FA/java_fa.dfa')
+    # enfa.read('C:/Users/MSI-PC/De sktop/Compilers_Lab/FA/java_fa.dfa')
+    enfa.lexical_analyse('Lex_source/java/test.txt', 'code_C_result.txt')
     pass

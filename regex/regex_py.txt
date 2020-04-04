@@ -1,12 +1,16 @@
-digit,letter_,digits,optionalExponent,optionalFraction,number,left_p,right_p,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,left_curly,right_curly,colon,semicolon,equal,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,And,Not,basic_id,id,False,None,True,and,as,assert,break,class,continue,def,del,elif,else,except,finally,for,from,global,if,import,in,is,lambda,nonlocal,not,or,pass,raise,return,try,while,with,yield
-0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,empty,left_parenthes,right_parenthes,star,or,[,],{,},<,>,:,;,=,comma,?,!,@
+digit,letter_,digits,optionalExponent,optionalFraction,number,left_p,right_p,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,left_curly,right_curly,colon,semicolon,EQUAL,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,And,Not,basic_id,id,False,None,True,and,as,assert,break,class,continue,def,del,elif,else,except,finally,for,from,global,if,import,in,is,lambda,nonlocal,not,pass,raise,return,try,while,with,yield,float,dec,oct,bin,hex,assignment,GE,LE,NE,IADD,IMINUS,INC,DEC,annotation,char,string,underline
+0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,empty,left_parenthes,right_parenthes,star,or,[,],{,},<,>,:,;,=,comma,?,!,@,backline,#,',",_
 # 常量
-digit - 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
-letter_ - A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z | a | b | c | d | e | f | g | h | i | j | k | l | m | n | o | p | q | r | s | t | u | v | w | x | y | z
-digits - digit digit *
+^digit - 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+^letter_ - A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z | a | b | c | d | e | f | g | h | i | j | k | l | m | n | o | p | q | r | s | t | u | v | w | x | y | z
+^digits - digit digit *
 ^optionalFraction - . digits | empty
 ^optionalExponent - ( E ( + | - | empty ) digits ) | empty
-number - digits optionalFraction optionalExponent
+@float - ( + | - | empty ) digits optionalFraction optionalExponent
+@dec - ( + | - | empty ) ( 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 ) digit * | 0
+@oct - ( + | - | empty ) 0 ( 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ) ( 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ) *
+@bin - ( + | - | empty ) 0 ( b | B ) ( 1 | 0 ) ( 1 | 0 ) *
+@hex - ( + | - | empty ) 0 ( x | X ) ( digit | a | b | c | d | e | f | A | B | C | D | E | F ) ( digit | a | b | c | d | e | f | A | B | C | D | E | F ) *
 # 符号
 left_p - left_parenthes
 right_p - right_parenthes
@@ -17,54 +21,63 @@ left_curly - {
 right_curly - }
 colon - :
 semicolon - ;
-equal - =
+assignment - =
 Comma - comma
 left_angle_brackets - <
 right_angle_brackets - >
-question_mark - ?
+^question_mark - ?
 plus - +
 minus - -
+IADD - + =
+IMINUS - - =
+INC - + +
+DEC - - -
+GE - > =
+LE - < =
+EQUAL - = =
 Star - star
-exclamation_mark - !
-Or - or
-And - and
-Not - not
+^exclamation_mark - !
+Or - o r
+And - a n d
+Not - n o t
+^underline - _
 # 基本标识符
-^basic_id - letter_ ( letter_ | digit ) *
+&basic_id - ( letter_ | underline ) ( letter_ | digit | underline ) *
 # 组合标识符,调用的函数名，或简单变量名
-id - basic_id ( . basic_id ) *
+#id - basic_id ( . basic_id ) *
 # 关键字 https://www.jianshu.com/p/974a51b438c5
-^None - N o n e
-^False - F a l s e
-^True - T r u e
-judger - False | True
-^try - t r y
-^except - e x c e p t
-^finally - f i n a l l y
-^raise - r a i s e
-error_handle - try | except | finally | raise
-^break - b r e a k
-^continue - c o n t i n u e
-^return - r e t u r n
-^while - w h i l e
-^if - i f
-^else - e l s e
-^for - f o r
-^elif - e l i f
-control_flow - break | continue | return | while | if | else | for | elif
-^return - r e t u r n
-^in - i n
-^is - i s
-^as - a s
-^assert - a s s e r t
-^class - c l a s s
-^def - d e f
-^del - d e l
-^from - f r o m
-^import - i m p o r t
-^global - g l o b a l
-^lambda - l a m b d a
-^nonlocal - n o n l o c a l
-^pass - p a s s
-^with - w i t h
-^yield - y i e l d
+None - N o n e
+False - F a l s e
+True - T r u e
+try - t r y
+except - e x c e p t
+finally - f i n a l l y
+raise - r a i s e
+#error_handle - try | except | finally | raise
+break - b r e a k
+continue - c o n t i n u e
+return - r e t u r n
+while - w h i l e
+if - i f
+else - e l s e
+for - f o r
+elif - e l i f
+#control_flow - break | continue | return | while | if | else | for | elif
+in - i n
+is - i s
+as - a s
+assert - a s s e r t
+class - c l a s s
+def - d e f
+del - d e l
+from - f r o m
+import - i m p o r t
+global - g l o b a l
+lambda - l a m b d a
+nonlocal - n o n l o c a l
+pass - p a s s
+with - w i t h
+yield - y i e l d
+:annotation - # and backline
+;char - ' and '
+;string - " and "

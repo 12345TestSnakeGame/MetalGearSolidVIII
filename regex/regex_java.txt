@@ -1,5 +1,5 @@
-digit,letter_,digits,optionalExponent,optionalFraction,number,SLP,SRP,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,LP,RP,colon,SEMI,equal,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,IF,ELSE,FOR,basic_id,id,PACKAGE,PUBLIC,FINAL,PRIVATE,CLASS,IMPORT,EXTENDS,ANNOTATE,OVERRIDE,TRY,CATCH,THIS,RETURN,BOOLEAN,INT,String,PROTECTED,access_control,QUALIFIER,IMPLEMENTS,INTERFACE,ABSTRACT,NATIVE,NEW,STATIC,STRICTFP,SYNCHRONIZED,TRANSIENT,VOLATILE,BREAK,CONTINUE,DO,WHILE,INSTANCEOF,SWITCH,CASE,DEFAULT,control_flow,THROW,THROWS,error_handle,VOID,LE,GE,NE,assignment,annotation,char,string,underline,Or_bool,And_bool,INC,float,dec,oct,bin,hex
-0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,empty,left_parenthes,right_parenthes,star,or,[,],{,},<,>,:,;,=,comma,?,!,@,/,',",_,&
+digit,letter_,digits,optionalExponent,optionalFraction,number,SLP,SRP,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,LP,RP,colon,SEMI,equal,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,IF,ELSE,FOR,basic_id,id,PACKAGE,PUBLIC,FINAL,PRIVATE,CLASS,IMPORT,EXTENDS,ANNOTATE,OVERRIDE,TRY,CATCH,THIS,RETURN,BOOLEAN,INT,String,PROTECTED,access_control,QUALIFIER,IMPLEMENTS,INTERFACE,ABSTRACT,NATIVE,NEW,STATIC,STRICTFP,SYNCHRONIZED,TRANSIENT,VOLATILE,BREAK,CONTINUE,DO,WHILE,INSTANCEOF,SWITCH,CASE,DEFAULT,control_flow,THROW,THROWS,error_handle,VOID,LE,GE,NE,assignment,annotation,char,string,underline,Or_bool,And_bool,INC,float,dec,oct,bin,hex,DEC,IADD,IMINUS,annotation2
+0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,empty,left_parenthes,right_parenthes,star,or,[,],{,},<,>,:,;,=,comma,?,!,@,/,',",_,&,backline
 # 常量
 ^digit - 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 ^letter_ - A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z | a | b | c | d | e | f | g | h | i | j | k | l | m | n | o | p | q | r | s | t | u | v | w | x | y | z
@@ -27,15 +27,18 @@ equal - = =
 LE - < =
 GE - > =
 NE - ! =
+IADD - + =
+IMINUS - - =
 Comma - comma
 left_angle_brackets - <
 right_angle_brackets - >
 question_mark - ?
 plus - +
 INC - + +
+DEC - - -
 minus - -
 Star - star
-exclamation_mark - !
+^exclamation_mark - !
 Or - or
 Or_bool - or or
 And_bool - & &
@@ -93,5 +96,6 @@ String - S t r i n g
 VOID - v o i d
 # 注释与字符串常量
 :annotation - / star and star /
+:annotation2 - / / and backline
 ;char - ' and '
 ;string - " and "

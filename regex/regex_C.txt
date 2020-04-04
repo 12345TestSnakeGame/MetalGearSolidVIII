@@ -1,22 +1,26 @@
-digit,letter_,digits,optionalExponent,optionalFraction,number,left_p,right_p,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,left_curly,right_curly,colon,semicolon,equal,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,basic_id,auto,short,int,long,float,double,char,struct,union,enum,typedef,const,unsigned,signed,extern,register,static,volatile,void,if,else,switch,case,for,do,while,goto,continue,break,default,sizeof,return
-0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,empty,left_parenthes,right_parenthes,star,or,[,],{,},<,>,:,;,=,comma,?,!,@
+digit,letter_,digits,optionalExponent,optionalFraction,number,SLP,SRP,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,left_curly,right_curly,colon,SEMI,equal,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,basic_id,auto,short,INT,long,FLOAT,double,char,struct,union,enum,typedef,const,unsigned,signed,extern,register,static,volatile,void,if,else,switch,case,for,do,while,goto,continue,break,default,sizeof,return,float,dec,oct,bin,hex,underline,IADD,IMINUS,GE,LE,NE,INC,DEC,annotation,annotation2,string,char
+0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,empty,left_parenthes,right_parenthes,star,or,[,],{,},<,>,:,;,=,comma,?,!,@,_,',",/,backline
 # 常量
-digit - 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
-letter_ - A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z | a | b | c | d | e | f | g | h | i | j | k | l | m | n | o | p | q | r | s | t | u | v | w | x | y | z
-digits - digit digit *
+^digit - 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+^letter_ - A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z | a | b | c | d | e | f | g | h | i | j | k | l | m | n | o | p | q | r | s | t | u | v | w | x | y | z
+^digits - digit digit *
 ^optionalFraction - . digits | empty
 ^optionalExponent - ( E ( + | - | empty ) digits ) | empty
-number - digits optionalFraction optionalExponent
+@float - ( + | - | empty ) digits optionalFraction optionalExponent
+@dec - ( + | - | empty ) ( 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 ) digit * | 0
+@oct - ( + | - | empty ) 0 ( 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ) ( 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ) *
+@bin - ( + | - | empty ) 0 ( b | B ) ( 1 | 0 ) ( 1 | 0 ) *
+@hex - ( + | - | empty ) 0 ( x | X ) ( digit | a | b | c | d | e | f | A | B | C | D | E | F ) ( digit | a | b | c | d | e | f | A | B | C | D | E | F ) *
 # 符号
-left_p - left_parenthes
-right_p - right_parenthes
+SLP - left_parenthes
+SRP - right_parenthes
 left_square_brace - [
 right_square_brace - ]
 dot - .
 left_curly - {
 right_curly - }
 colon - :
-semicolon - ;
+SEMI - ;
 equal - =
 Comma - comma
 left_angle_brackets - <
@@ -27,38 +31,51 @@ minus - -
 Star - star
 exclamation_mark - !
 Or - or
+GE - > =
+NE - ! =
+LE - < =
+INC - + +
+DEC - - -
+IADD - + =
+IMINUS - - =
+^underline - _
 # 基本标识符
-^basic_id - letter_ ( letter_ | digit ) *
+basic_id - letter_ ( letter_ | digit | underline ) *
 # 关键字 http://c.biancheng.net/cpp/html/797.html
-^auto - a u t o
-^short - s h o r t
-^int - i n t
-^long - l o n g
-^float - f l o a t
-^double - d o u b l e
-^char - c h a r
-^struct - s t r u c t
-^union - u n i o n
-^enum - e n u m
-^typedef - t y p e d e f
-^const - c o n s t
-^unsigned - u n s i g n e d
-^signed - s i g n e d
-^extern - e x t e r n
-^register - r e g i s t e r
-^static - s t a t i c
-^volatile - v o l a t i l e
-^void - v o i d
-^if - i f
-^else - e l s e
-^switch - s w i t c h
-^case - c a s e
-^for - f o r
-^do - d o
-^while - w h i l e
-^goto - g o t o
-^continue - c o n t i n u e
-^break - b r e a k
-^default - d e f a u l t
-^sizeof - s i z e o f
-^return - r e t u r n
+auto - a u t o
+short - s h o r t
+INT - i n t
+long - l o n g
+FLOAT - f l o a t
+double - d o u b l e
+char - c h a r
+struct - s t r u c t
+union - u n i o n
+enum - e n u m
+typedef - t y p e d e f
+const - c o n s t
+unsigned - u n s i g n e d
+signed - s i g n e d
+extern - e x t e r n
+register - r e g i s t e r
+static - s t a t i c
+volatile - v o l a t i l e
+void - v o i d
+if - i f
+else - e l s e
+switch - s w i t c h
+case - c a s e
+for - f o r
+do - d o
+while - w h i l e
+goto - g o t o
+continue - c o n t i n u e
+break - b r e a k
+default - d e f a u l t
+sizeof - s i z e o f
+return - r e t u r n
+# 注释与字符串常量
+:annotation - / star and star /
+:annotation2 - / / and backline
+;char - ' and '
+;string - " and "

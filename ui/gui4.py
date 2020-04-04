@@ -320,7 +320,7 @@ class Ui_MainWindow(QMainWindow):
     def readCode(self):
         fname = QFileDialog.getOpenFileName(self, 'Open Source Code file', '.')
         if fname[0]:
-            f = open(fname[0], 'r')
+            f = open(fname[0], 'r', encoding='utf-8')
             with f:
                 data = f.read()
                 self.plainTextEdit.setPlainText(data)

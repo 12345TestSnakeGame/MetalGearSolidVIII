@@ -33,10 +33,10 @@
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout">
-     <item row="3" column="2">
-      <widget class="QTableView" name="tableView">
-       <property name="textElideMode">
-        <enum>Qt::ElideMiddle</enum>
+     <item row="0" column="2">
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>符号表</string>
        </property>
       </widget>
      </item>
@@ -47,10 +47,10 @@
        </property>
       </widget>
      </item>
-     <item row="0" column="2">
-      <widget class="QLabel" name="label_2">
-       <property name="text">
-        <string>符号表</string>
+     <item row="1" column="0">
+      <widget class="Line" name="line_8">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
        </property>
       </widget>
      </item>
@@ -86,8 +86,15 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="0">
-      <widget class="Line" name="line_8">
+     <item row="3" column="2">
+      <widget class="QTableView" name="tableView">
+       <property name="textElideMode">
+        <enum>Qt::ElideMiddle</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="Line" name="line_9">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
@@ -204,11 +211,11 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>1</number>
+     <number>2</number>
     </property>
     <widget class="QWidget" name="tab">
      <attribute name="title">
-      <string>Source Code</string>
+      <string>待分析代码</string>
      </attribute>
      <widget class="QPlainTextEdit" name="plainTextEdit">
       <property name="geometry">
@@ -229,7 +236,7 @@
     </widget>
     <widget class="QWidget" name="FA_table">
      <attribute name="title">
-      <string>FA_Table</string>
+      <string>FA转换表</string>
      </attribute>
      <widget class="QTableView" name="tableView_3">
       <property name="geometry">
@@ -245,6 +252,34 @@
       </property>
       <property name="textElideMode">
        <enum>Qt::ElideMiddle</enum>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="Regex_Tab">
+     <attribute name="title">
+      <string>词法</string>
+     </attribute>
+     <widget class="QPlainTextEdit" name="plainTextEdit_3">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>471</width>
+        <height>691</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_5">
+      <property name="geometry">
+       <rect>
+        <x>140</x>
+        <y>700</y>
+        <width>171</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>生成FA转换表</string>
       </property>
      </widget>
     </widget>
