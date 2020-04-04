@@ -389,8 +389,9 @@ class Ui_MainWindow(QMainWindow):
         if fname[0]:
             print(fname)
             data = self.plainTextEdit_3.toPlainText()
+            lines = data.split('\n')
             try:
-                nfa.compile(data)
+                nfa.compile(lines) # TODO
             except:
                 QMessageBox.information(self, '错误', '正则文法中出现错误！', QMessageBox.Yes)
                 return
