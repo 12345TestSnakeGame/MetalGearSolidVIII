@@ -1309,9 +1309,9 @@ class e_NFA(FA):
 
 if __name__ == '__main__':
     enfa = e_NFA()
-    # enfa.compile_regex('regex/regex_java.txt')
-    # enfa.write('FA/java_fa.dfa')
-    enfa.read('FA/java_fa.dfa')
+    enfa.compile_regex('regex/regex_py.txt')
+    enfa.write('FA/py_fa.dfa')
+    # enfa.read('FA/java_fa.dfa')
     # enfa.read('C:/Users/MSI-PC/De sktop/Compilers_Lab/FA/java_fa.dfa')
-    enfa.lexical_analyse('Lex_source/java/error.java', 'code_C_result.txt')
+    # enfa.lexical_analyse('Lex_source/java/error.java', 'code_C_result.txt')
     pass

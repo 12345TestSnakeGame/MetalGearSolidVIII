@@ -1,4 +1,4 @@
-digit,letter_,digits,optionalExponent,optionalFraction,number,left_p,right_p,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,left_curly,right_curly,colon,semicolon,EQUAL,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,And,Not,basic_id,id,False,None,True,and,as,assert,break,class,continue,def,del,elif,else,except,finally,for,from,global,if,import,in,is,lambda,nonlocal,not,pass,raise,return,try,while,with,yield,float,dec,oct,bin,hex,assignment,GE,LE,NE,IADD,IMINUS,INC,DEC,annotation,char,string,underline,NOTEQUAL
+digit,letter_,digits,optionalExponent,optionalFraction,number,left_p,right_p,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,left_curly,right_curly,colon,semicolon,EQUAL,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,And,Not,basic_id,id,False,None,True,and,as,assert,break,class,continue,def,del,elif,else,except,finally,for,from,global,if,import,in,is,lambda,nonlocal,not,pass,raise,return,try,while,with,yield,float,dec,oct,bin,hex,assignment,GE,LE,NE,IADD,IMINUS,INC,DEC,annotation,char,string,underline,NOTEQUAL,NOT
 0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,empty,left_parenthes,right_parenthes,star,or,[,],{,},<,>,:,;,=,comma,?,!,@,backline,#,',",_
 # 常量
 ^digit - 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
@@ -35,9 +35,10 @@ DEC - - -
 GE - > =
 LE - < =
 EQUAL - = =
-NOTEQUAL - ! =
+#=============改这里，把下面两个前面的#删掉
+#NOTEQUAL - ! =
+#NOT - !
 Star - star
-^exclamation_mark - !
 Or - o r
 And - a n d
 Not - n o t
