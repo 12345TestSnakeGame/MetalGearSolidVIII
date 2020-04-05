@@ -6,11 +6,11 @@ digit,letter_,digits,optionalExponent,optionalFraction,number,SLP,SRP,left_angle
 ^digits - digit digit *
 ^optionalFraction - . digits | empty
 ^optionalExponent - ( E ( + | - | empty ) digits ) | empty
-@float - ( + | - | empty ) digits optionalFraction optionalExponent
-@dec - ( + | - | empty ) ( 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 ) digit * | 0
-@oct - ( + | - | empty ) 0 ( 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ) ( 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ) *
-@bin - ( + | - | empty ) 0 ( b | B ) ( 1 | 0 ) ( 1 | 0 ) *
-@hex - ( + | - | empty ) 0 ( x | X ) ( digit | a | b | c | d | e | f | A | B | C | D | E | F ) ( digit | a | b | c | d | e | f | A | B | C | D | E | F ) *
+@float - digits optionalFraction optionalExponent
+@dec - ( 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 ) digit * | 0
+@oct - 0 ( 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ) ( 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ) *
+@bin - 0 ( b | B ) ( 1 | 0 ) ( 1 | 0 ) *
+@hex - 0 ( x | X ) ( digit | a | b | c | d | e | f | A | B | C | D | E | F ) ( digit | a | b | c | d | e | f | A | B | C | D | E | F ) *
 #number - float | dec | oct | bin | hex
 # 符号
 SLP - left_parenthes

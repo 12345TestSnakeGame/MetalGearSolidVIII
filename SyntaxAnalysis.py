@@ -1180,6 +1180,8 @@ class LL_Parser(Parser):
                 reduce_statck += reversed_right
             r = reduce_statck[-1]
 
+# TODO 带有操作的符号继承空串，可以直接复用现有的句法分析代码，实现SDT
+
 
 # 从文件读取
 def cfg_readfile(filename: str):

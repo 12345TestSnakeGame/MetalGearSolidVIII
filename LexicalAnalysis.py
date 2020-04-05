@@ -1302,16 +1302,14 @@ class e_NFA(FA):
         self.Lexical(content)
 
 
-    # TODO 设计测试用例包括：拼写错误
     # TODO DFA中消除无效状态
-    # TODO 如果回车作为一个符号而不是停用词，词法分析器的行为是一致的吗？
 
 
 if __name__ == '__main__':
     enfa = e_NFA()
-    enfa.compile_regex('regex/regex_py.txt')
-    enfa.write('FA/py_fa.dfa')
-    # enfa.read('FA/java_fa.dfa')
+    # enfa.compile_regex('regex/regex_java.txt')
+    # enfa.write('FA/java_fa.dfa')
+    enfa.read('FA/java_fa.dfa')
     # enfa.read('C:/Users/MSI-PC/De sktop/Compilers_Lab/FA/java_fa.dfa')
-    # enfa.lexical_analyse('Lex_source/java/error.java', 'code_C_result.txt')
+    enfa.lexical_analyse('Lex_source/java/error.java', 'code_C_result.txt')
     pass
