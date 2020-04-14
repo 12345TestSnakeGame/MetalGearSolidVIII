@@ -200,6 +200,7 @@ class item_lookahead(item):
         return item_lookahead(self.position + 1, self.left, self.right, self.lookahead)
 
 
+# 读取CFG文法，生成FIRST，FOLLOW和SELECT集
 class cfg:
     def __init__(self, start: n_terminal, n_terminals: [], terminals: [], rules: []):
         # 初始符号，非终结符，终结符与产生式
@@ -445,6 +446,7 @@ class closure:
         return self.number >= other.number
 
 
+# 语法分析表
 class ParsingTable:
     def __init__(self, table: {}, terminal_list: [], n_terminal_list: []):
         self.ACTION = []
@@ -494,7 +496,7 @@ class ParsingTable:
         string += '\nGOTO\n\t' + '\t'.join(self.nt) + '\n'
         for i in range(len(self.GOTO)):
             string = string + str(i) + '\t'
-            for k in self.ACTION[i]:
+            for k in self.GOTO[i]:
                 if len(k) == 0:
                     string += '[]\t'
                 else:
@@ -509,6 +511,7 @@ class ParsingTable:
         return self.__string()
 
 
+# 生成NFA自动机。专门用于自底向上的分析方法，包括LR(0),SLR,LR(1),LALR
 class Automata:
     def __init__(self, lang: cfg, lr_mode = 'LR1'):
         self.CFG = lang
@@ -988,14 +991,11 @@ class Automata:
         string += '\n' + str(table) + '\n\n'
         return string
 
-
-
     def __repr__(self):
         return self.__string('LR0', self.closures_LR0, self.trans_LR0, self.table_LR0) \
                  + self.__string('SLR', self.closures_SLR, self.trans_SLR, self.table_SLR) \
                  + self.__string('LR1', self.closures_LR1, self.trans_LR1, self.table_LR1) \
                  + self.__string('LALR', self.closures_LALR, self.trans_LALR, self.table_LALR)
-
 
     def __eq__(self, other):
         return self.CFG == other.CFG
@@ -1014,6 +1014,7 @@ class Parser:
     def parse(self, text: str):
         pass
 
+    # 按空格将字符串打成列表，然后再CFG的表中查询，把字符串替换成symbol对象。最后在结尾加一个end_terminal对象
     def _get_symbolSequence(self, s: str):
         if len(s) == 0:
             return None
@@ -1031,10 +1032,18 @@ class LR_Parser(Parser):
         super().__init__(lang)
         self.PDA = Automata(lang)
 
+    # ACTION表与GOTO表的使用过程：
+    #   +初始时刻，符号栈中元素为$，状态栈中为0
+    #   每次取状态栈顶的状态，与待输入符号中的第一个
     def parse(self, text: str):
+        # TODO 改成清晰的用栈结构实现的。为语义分析打下基础
+        # TODO 栈结构清晰之后，才能实现恐慌模式错误恢复
+        # 获得待处理的字符序列
         symseq = self._get_symbolSequence(text)
         reduce_record = list(map(lambda x: {x: None}, symseq))
         symseq.reverse()
+
+        self.parse2(symseq)
 
         # 让栈提前于symbol而变化
         symbol_stack = []
@@ -1042,8 +1051,8 @@ class LR_Parser(Parser):
         current_symbol = symseq.pop()
 
         index = 0
-        finished = True
-        while finished:
+        unfinished = True
+        while unfinished:
             # 当前的栈底状态
             current_status = status_stack[-1]
             if isinstance(current_symbol, n_terminal):
@@ -1063,7 +1072,7 @@ class LR_Parser(Parser):
                 if operation[0][0] == 'r':
                     number = operation[0][1]
                     if number == 0:
-                        print('finished')
+                        print('unfinished')
                         # reduce_record.remove(end_terminal('$'))
                         self.tree = reduce_record[0]
                         return
@@ -1098,6 +1107,56 @@ class LR_Parser(Parser):
                     current_symbol = symseq.pop()
 
         raise Exception
+
+    # 对sequence进行处理
+    # seq:以$结尾的符号序列，反序
+    def parse2(self, lex_seq:[]):
+
+        # 初始化的两个数据结构
+        symbol_stack = [end_terminal('$')]
+        status_stack = [0]
+
+        unfinished = True
+        while unfinished:
+            # 获得栈顶状态与输入符号
+            current_status = status_stack[-1]
+            current_symbol = lex_seq.pop()
+
+            # 获取操作
+            operation = self.PDA.table.get_action(current_status, current_symbol.s)
+            if len(operation) == 0:
+                raise Exception('LR分析表遇到未知状态')
+
+            # 需要移进
+            if operation[0][0] == 's':
+                next_status = str(operation[0][1])
+                symbol_stack.append(current_symbol)
+                status_stack.append(next_status)
+            elif operation[0][0] == 'r':
+                # 完成parsing
+                if operation[0][1] == '0' and isinstance(current_symbol, end_terminal):
+                    # TODO
+                    print('finished parse 2')
+                # 需要归约
+                else:
+                    # 获取需要归约的产生式
+                    reduce_rule_number = int(operation[0][1])
+                    current_rule = self.PDA.CFG.rule_by_number(reduce_rule_number)
+                    rule_length = len(current_rule.right)
+                    # TODO 忽略空字符的扩展在这里添加
+                    if current_rule.right[0].s == 'empty':
+                        rule_length = 0
+
+                    for idx in range(rule_length):
+                        status_stack.pop()
+                        symbol_stack.pop()
+                    assert len(status_stack) > 0
+                    temp_status = status_stack[-1]
+                    next_status = self.PDA.table.get_goto(temp_status, current_rule.left.s)
+                    status_stack.append(next_status)
+                    symbol_stack.append(current_rule.left)
+
+        raise Exception('你怎么到这里来了')
 
     def visualize_tree(self):
         dot = Digraph(comment='parsing tree')
@@ -1238,14 +1297,16 @@ if __name__ == '__main__':
     # FOLLOW = follow(start, n_terminals, terminals, rules, FIRST)
     # SELECT = select(start, n_terminals, terminals, rules, FIRST, FOLLOW)
     # print(SELECT)
-    c = cfg_readfile('cfg_regex.txt')
+    c = cfg_readfile('testCases/first/cfg_1.txt')
     # TODO 有bug，cfg_regex跑出来不是LALR的，却可以是SLR的。肯定哪里出错了
     # print(c.FIRST)
     # print(c.FOLLOW)
     # print(c.SELECT)
     pda = Automata(c)
-    print(pda)
-    # parse = LR_analyzer(pda)
+    f = open('syl_result_24.txt', 'w', encoding='utf-8')
+    f.write(str(pda))
+    f.close()
+    # print(pda)
+    # parse = LR_Parser(c)
     # parse.analyze_str('( entity ( entity | entity | entity ) entity entity * ) | entity')
     # parse.visulize_tree()
-    pass
