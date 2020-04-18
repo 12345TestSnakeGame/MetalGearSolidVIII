@@ -1,6 +1,0 @@
-S',S,I,T
-S' - S
-S - v I : T
-T - T , i
-I - i
-T - r

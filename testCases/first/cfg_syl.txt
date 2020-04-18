@@ -1,0 +1,8 @@
+D',D,T
+ID,int,real,proc,;
+D' - D
+D - D D
+D - T ID ;
+T - int
+T - real
+T - proc

@@ -1,0 +1,18 @@
+声明语句：
+ 变量声明： Identifier '=' additiveExpression 
+ 数组声明： Identifier  '=' additiveExpression 
+ 过程声明： 'def' Identifier(parameter) ':'  expression 
+表达式及赋值语句：
+additiveExpression : expression op expression
+Identifier '=' additiveExpression 
+分支语句：
+ 'if'  statement  'then'  expression   'elif' expression  'else' ':'   expression 
+循环语句：
+'while'  statement ':'   expression  
+'for' expression 'in' experssion ':' expression
+过程调用语句：
+'call' FunctionName '('parameter')' 
+属性调用语句：
+Expression ('.' Expression)?
+数组切片：
+listname '[' erpression ':' expression ']' 

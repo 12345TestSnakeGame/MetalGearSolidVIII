@@ -1,5 +1,5 @@
-R',R,B,A
-(,),empty,entity,|,*
+R' R B A
+( ) empty entity | *
 R' - R
 R - B | R
 R - B

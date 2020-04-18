@@ -1,0 +1,60 @@
+P' P D T X C S L E G F B K H relop Elist
+empty ID ; { } proc record int real char CONST STRING + * ( ) if while do then else or and not true false <= < != > >= call , [ ] = ==
+P' - P
+P - D P
+P - S P
+P - empty
+#
+D - T ID ;
+D - proc ID { P }
+D - record ID { P }
+#
+T - X C
+#
+X - int
+X - real
+X - char
+#
+C - [ CONST ] C
+C - empty
+#
+S - ID = E ;
+S - L = E ;
+#
+L - ID [ E ]
+L - L [ E ]
+#
+E - E + G
+E - G
+G - G * F
+G - F
+F - ( E )
+F - ID
+F - CONST
+F - STRING
+F - L
+#
+S - if B then { P }
+S - if B then { P } else { P }
+S - while B do { P }
+#
+B - B or K
+B - K
+K - K and H
+K - H
+H - not H
+H - ( B )
+H - E relop E
+H - true
+H - false
+#
+relop - <
+relop - <=
+relop - ==
+relop - !=
+relop - >
+relop - >=
+#
+S - call ID ( Elist ) ;
+Elist - Elist , E
+Elist - E

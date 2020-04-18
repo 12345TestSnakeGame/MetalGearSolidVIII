@@ -1,0 +1,46 @@
+P',P,D,S,T,X,C,E,L,B,relop,Elist
+proc,ID,;,record,int,real,[,CONST,],empty,=,+,*,-,(,),if,then,else,while,do,or,and,not,true,false,<,<=,==,!=,>=,>,call,，
+P' - P
+P - D
+P - S
+S - S S
+D - D D
+D - proc ID ; D S
+D - T ID ;
+T - X C
+T - record D
+X - int
+X - real
+C - [ CONST ] C
+C - empty
+S - ID = E ;
+S - L = E ;
+S - empty
+E - E + E
+E - E * E
+E - - E
+E - ( E )
+E - ID
+E - CONST
+E - L
+L - ID [ E ]
+L - L [ E ]
+S - if B then S
+S - if B then S else S
+S - while B do S
+B - B or B
+B - B and B
+B - not B
+B - ( B )
+B - E relop E
+B - true
+B - false
+relop - <
+relop - <=
+relop - ==
+relop - !=
+relop - >
+relop - >=
+S - call ID ( Elist )
+Elist - Elist ， E
+Elist - E

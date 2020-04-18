@@ -1,4 +1,4 @@
-digit,letter_,digits,optionalExponent,optionalFraction,number,SLP,SRP,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,LP,RP,colon,SEMI,equal,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,IF,ELSE,FOR,basic_id,id,PACKAGE,PUBLIC,FINAL,PRIVATE,CLASS,IMPORT,EXTENDS,ANNOTATE,OVERRIDE,TRY,CATCH,THIS,RETURN,BOOLEAN,INT,String,PROTECTED,access_control,QUALIFIER,IMPLEMENTS,INTERFACE,ABSTRACT,NATIVE,NEW,STATIC,STRICTFP,SYNCHRONIZED,TRANSIENT,VOLATILE,BREAK,CONTINUE,DO,WHILE,INSTANCEOF,SWITCH,CASE,DEFAULT,control_flow,THROW,THROWS,error_handle,VOID,LE,GE,NE,assignment,annotation,char,string,underline,Or_bool,And_bool,INC,float,dec,oct,bin,hex,DEC,IADD,IMINUS,annotation2,Not
+digit,letter_,digits,optionalExponent,optionalFraction,number,SLP,SRP,left_angle_brackets,right_angle_brackets,left_square_brace,right_square_brace,dot,LP,RP,colon,SEMI,equal,Comma,question_mark,plus,minus,Star,exclamation_mark,Or,if,else,for,basic_id,id,PACKAGE,public,FINAL,PRIVATE,class,IMPORT,EXTENDS,ANNOTATE,OVERRIDE,TRY,CATCH,THIS,RETURN,BOOLEAN,INT,String,PROTECTED,access_control,QUALIFIER,IMPLEMENTS,INTERFACE,ABSTRACT,NATIVE,new,STATIC,STRICTFP,SYNCHRONIZED,TRANSIENT,VOLATILE,BREAK,CONTINUE,do,while,INSTANCEOF,SWITCH,CASE,DEFAULT,control_flow,THROW,THROWS,error_handle,VOID,LE,GE,NE,assignment,annotation,char,string,underline,Or_bool,And_bool,INC,float,dec,oct,bin,hex,DEC,IADD,IMINUS,annotation2,Not,record,FLOAT,CHAR,CONST
 0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,+,-,.,empty,left_parenthes,right_parenthes,star,or,[,],{,},<,>,:,;,=,comma,?,!,@,/,',",_,&,backline
 # 常量
 ^digit - 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
@@ -11,7 +11,7 @@ digit,letter_,digits,optionalExponent,optionalFraction,number,SLP,SRP,left_angle
 @oct - 0 ( 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ) ( 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ) *
 @bin - 0 ( b | B ) ( 1 | 0 ) ( 1 | 0 ) *
 @hex - 0 ( x | X ) ( digit | a | b | c | d | e | f | A | B | C | D | E | F ) ( digit | a | b | c | d | e | f | A | B | C | D | E | F ) *
-#number - float | dec | oct | bin | hex
+CONST - float | dec | oct | bin | hex
 # 符号
 SLP - left_parenthes
 SRP - right_parenthes
@@ -48,18 +48,18 @@ And_bool - & &
 # 组合标识符,调用的函数名，或简单变量名
 #id - basic_id ( . basic_id ) *
 # 关键字 https://www.cnblogs.com/chenglc/p/6922834.html
-PUBLIC - p u b l i c
+public - p u b l i c
 PROTECTED - p r o t e c t e d
 PRIVATE - p r i v a t e
 #access_control - public | protected | private
 ABSTRACT - a b s t r a c t
-CLASS - c l a s s
+class - c l a s s
 EXTENDS - e x t e n d s
 FINAL - f i n a l
 IMPLEMENTS - i m p l e m e n t s
 INTERFACE - i n t e r f a c e
 NATIVE - n a t i v e
-NEW - n e w
+new - n e w
 STATIC - s t a t i c
 STRICTFP - s t r i c t f p
 SYNCHRONIZED - s y n c h r o n i z e d
@@ -69,11 +69,11 @@ VOLATILE - v o l a t i l e
 BREAK - b r e a k
 CONTINUE - c o n t i n u e
 RETURN - r e t u r n
-DO - d o
-WHILE - w h i l e
-IF - i f
-ELSE - e l s e
-FOR - f o r
+do - d o
+while - w h i l e
+if - i f
+else - e l s e
+for - f o r
 INSTANCEOF - i n s t a n c e o f
 SWITCH - s w i t c h
 CASE - c a s e
@@ -83,8 +83,9 @@ IMPORT - i m p o r t
 PACKAGE - p a c k a g e
 ANNOTATE - @
 OVERRIDE - ( o | O ) v e r r i d e
+record - r e c o r d
 TRY - t r y
-CATCH - c a t c g
+CATCH - c a t c h
 THROW - t h r o w
 THROWS - t h r o w s
 #error_handle - catch | try | throw | throws
@@ -92,8 +93,10 @@ THIS - t h i s
 # 基本类型
 BOOLEAN - b o o l e a n
 INT - i n t
+FLOAT - f l o a t
 String - S t r i n g
 VOID - v o i d
+CHAR - c h a r
 # 注释与字符串常量
 :annotation - / star and star /
 :annotation2 - / / and backline

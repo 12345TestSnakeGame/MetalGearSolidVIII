@@ -66,6 +66,13 @@ class rule:
         self.left = left
         self.right = rights
         self.count = self.right.__len__()
+        self.__strHash()
+
+    def __strHash(self):
+        h = hash(self.left.s)
+        for k in self.right:
+            h += hash(k.s)
+        self.ha = h
 
     def __repr__(self):
         return self.left.s + ' -> ' + ' '.join(list(map(lambda x: str(x), self.right)))
@@ -75,6 +82,18 @@ class rule:
 
     def __hash__(self):
         return hash(self.left) + sum(list(map(lambda x: hash(x), self.right)))
+
+    def __lt__(self, other):
+        return self.ha < other.ha
+
+    def __le__(self, other):
+        return self.ha <= other.ha
+
+    def __gt__(self, other):
+        return self.ha > other.ha
+
+    def __ge__(self, other):
+        return self.ha >= other.ha
 
 
 class item(rule):
@@ -95,6 +114,14 @@ class item(rule):
         self.position = position
         self.__operation_cache = {}
         self.core = (self.left, tuple(self.right), self.position)
+        self.__strHash()
+
+    def __strHash(self):
+        h = hash(self.left.s)
+        for k in self.right:
+            h += hash(k.s)
+        h += self.position
+        self.ha = h
 
     def __repr__(self):
         l_part = ' '.join(list(map(lambda x: str(x), self.right[0:self.position])))
@@ -105,7 +132,7 @@ class item(rule):
         return other.left == self.left and other.right == self.right and self.position == other.position
 
     def __hash__(self):
-        count = 0
+        count = 1
         for v in self.right:
             count += hash(v)
         count *= (hash(self.left) + 1)
@@ -141,6 +168,15 @@ class item_lookahead(item):
         self.CFG_imported = False
         self.CFG = None
 
+    def __strHash(self):
+        h = hash(self.left.s)
+        for k in self.right:
+            h += hash(k.s)
+        h += self.position
+        for z in self.lookahead:
+            h += hash(z)
+        self.ha = h
+
     def __hash__(self):
         count = 0
         for v in self.right:
@@ -159,7 +195,7 @@ class item_lookahead(item):
         l_part = ' '.join(list(map(lambda x: str(x), self.right[0:self.position])))
         r_part = ' '.join(list(map(lambda x: str(x), self.right[self.position:])))
         ss =  self.left.s + ' -> ' + l_part + ' · ' + r_part
-        return ss + ', ' + ''.join(list(map(str, list(self.lookahead))))
+        return ss + ', ' + ' '.join(list(map(str, list(self.lookahead))))
 
     def __str__(self):
         l_part = ' '.join(list(map(lambda x: str(x), self.right[0:self.position])))
@@ -392,6 +428,15 @@ class cfg:
     def __hash__(self):
         return hash(self.start) + hash(self.terminals) + hash(self.n_terminals) + hash(self.rules)
 
+    def __str__(self):
+        s = ''
+        s += '\n\nFIRST\n' + str(self.FIRST)
+        s += '\n\nFOLLOW\n' + str(self.FOLLOW)
+        s += '\n\nSELECT\n' + str(self.SELECT)
+        return s
+
+    def __repr__(self):
+        return self.__str__()
 
 class closure:
     def __init__(self, number: int, items: [item, ]):
@@ -428,7 +473,7 @@ class closure:
     def __hash__(self):
         count = 0
         for i in self.items:
-            count += i.__hash__()
+            count -= i.__hash__()
         # 不同序号的closure有可能是同一个
         # count *= (self.number + 1)
         return count
@@ -519,7 +564,7 @@ class Automata:
         # 计算LR(0)
         self.__initial_closure = self.__initial_closure_LR0
         self.__cal_items = self.__cal_items_LR0
-        c_pool, s_trans = self.__construct_automata()
+        c_pool, s_trans, i2c, il = self.__construct_automata()
         self.__construct_table_LR0(c_pool, s_trans)
 
         # 计算SLR
@@ -528,8 +573,8 @@ class Automata:
         # 计算LR(1)
         self.__initial_closure = self.__initial_closure_LR1
         self.__cal_items = self.__cal_items_LR1
-        c_pool, s_trans = self.__construct_automata()
-        self.__construct_table_LR1(c_pool, s_trans)
+        c_pool, s_trans, i2c, il = self.__construct_automata()
+        self.__construct_table_LR1(c_pool, s_trans, i2c, il)
 
         # 计算LALR
         self.__construct_table_LALR(c_pool, s_trans)
@@ -701,15 +746,28 @@ class Automata:
 
         # closures与序号
         # TODO 有很小的几率两个closure的hash值相同，但是用list感觉好麻烦。。。
-        status_dict = {count: i_r_closure}
-        reversed_status_dict = {i_r_closure: count}
+        items = i_r_closure.items
+        items.sort()
+        status_dict = {count: tuple(items)}
+        reversed_status_dict = {tuple(items): count}
+
+        item2closure = {tuple(items): i_r_closure}
+        itemList = [tuple(items)]
+
+        numberSet = set()
 
         # 不断循环直到没有可遍历的状态了
         while len(to_explore) > 0:
             exploring = to_explore.copy()
             to_explore.clear()
             # 对每一个状态（按广度优先搜索顺序）
-            for status in exploring:
+            # for status in exploring:
+            while len(exploring) != 0:
+                # 看顺序不对就换
+                status = exploring[0]
+
+                exploring = exploring[1:]
+                numberSet.add(status.number)
                 # 对状态中的每一个产生式，找到其可行的后继产生式与对应的输入符号 （同样按顺序）
                 # origin_closure: 原状态的序号
                 # s_rule: 状态之间的映射 TODO 同样，有很小的概率，key的hash值相同
@@ -720,36 +778,58 @@ class Automata:
                         continue
                     s_item = r.successive_item()
                     s_symbol = r.successive_symbol()
+                    # TODO 这里有错吗
                     if s_symbol in s_rule:
                         s_rule[s_symbol].append(s_item)
                     else:
                         s_rule[s_symbol] = [s_item]
-
+                end_item = status.items
+                end_item.sort()
+                assert tuple(end_item) in itemList
+                # TODO 如果s_rule为空呢
                 # 对每个可行的移进
                 for (key, value) in s_rule.items():
                     # 求出由该移进的项目生成的closure
                     temp_closure = closure(count + 1, self.__cal_items(value))
+                    temp_items = temp_closure.items
+                    temp_items.sort()
+                    temp_tuple = tuple(temp_items)
                     # 如果是已经建立过的状态
-                    if temp_closure in closure_pool or temp_closure in exploring or temp_closure in to_explore:
-                        temp_number = reversed_status_dict[temp_closure]
+                    # if temp_closure in closure_pool or temp_closure in exploring or temp_closure in to_explore:
+                    if temp_tuple in itemList:
+                        assert temp_tuple in item2closure
+                        temp_number = reversed_status_dict[temp_tuple]
                         if origin_closure in status_trans:
+                            # assert (key, temp_number) not in status_trans[origin_closure]
                             status_trans[origin_closure].append((key, temp_number))
                         else:
                             status_trans[origin_closure] = [(key, temp_number)]
                         continue
                     # 如果是为建立的状态
+                    itemList.append(temp_tuple)
+                    assert temp_tuple not in item2closure
+                    item2closure[temp_tuple] = temp_closure
                     count = count + 1
-                    to_explore.append(temp_closure)
+                    to_explore.append(temp_closure) # TODO 这里应该不会重复吧。。。。
                     if origin_closure in status_trans:
                         status_trans[origin_closure].append((key, count))
                     else:
                         status_trans[origin_closure] = [(key, count)]
-                    status_dict[count] = temp_closure
-                    reversed_status_dict[temp_closure] = count
-            for v in exploring:
-                closure_pool.add(v)
-
-        return closure_pool, status_trans
+                    # assert count not in status_dict
+                    assert temp_tuple not in reversed_status_dict
+                    if temp_tuple in reversed_status_dict:
+                        print(temp_tuple)
+                        print(status_dict[reversed_status_dict[temp_tuple]])
+                        raise Exception
+                    status_dict[count] = temp_tuple
+                    reversed_status_dict[temp_tuple] = count
+                closure_pool.add(status)
+            # for v in exploring:
+            #     closure_pool.add(v)
+        #
+        # print('len ' + str(len(numberSet)))
+        # print('max ' + str(max(numberSet)))
+        return closure_pool, status_trans, item2closure, itemList
 
     # 为LALR设计。将closure_pool中核心相同的项集合并，返回合并后的项目集与转移映射
     def __merge_closures(self, closure_pool, status_trans: {}):
@@ -906,11 +986,12 @@ class Automata:
         self.trans_SLR = status_trans
         self.table_SLR = ParsingTable(table, terminal_list, n_terminal_list)
 
-    def __construct_table_LR1(self, closure_pool, status_trans: {}):
-        closure_count = len(closure_pool)
+    def __construct_table_LR1(self, closure_pool, status_trans: {}, item2Closure: dict, itemList: []):
+        closure_count = len(itemList)
+        # assert len(itemList) != len(closure_pool)
         closure_dict = {}
-        for k in closure_pool:
-            closure_dict[k.number] = k
+        for k in itemList:
+            closure_dict[item2Closure[k].number] = item2Closure[k]
         table = {'ACTION': {}, 'GO': {}}
         terminal_list = list(self.CFG.terminals) + [end_terminal('$')]
         if empty_terminal('empty') in terminal_list:
@@ -1043,7 +1124,7 @@ class LR_Parser(Parser):
         reduce_record = list(map(lambda x: {x: None}, symseq))
         symseq.reverse()
 
-        self.parse2(symseq)
+        self.parse2(symseq.copy())
 
         # 让栈提前于symbol而变化
         symbol_stack = []
@@ -1110,7 +1191,7 @@ class LR_Parser(Parser):
 
     # 对sequence进行处理
     # seq:以$结尾的符号序列，反序
-    def parse2(self, lex_seq:[]):
+    def parse2(self, lex_seq: []):
 
         # 初始化的两个数据结构
         symbol_stack = [end_terminal('$')]
@@ -1129,14 +1210,15 @@ class LR_Parser(Parser):
 
             # 需要移进
             if operation[0][0] == 's':
-                next_status = str(operation[0][1])
+                next_status = operation[0][1]
                 symbol_stack.append(current_symbol)
                 status_stack.append(next_status)
             elif operation[0][0] == 'r':
                 # 完成parsing
-                if operation[0][1] == '0' and isinstance(current_symbol, end_terminal):
+                if operation[0][1] == 0 and isinstance(current_symbol, end_terminal):
                     # TODO
                     print('finished parse 2')
+                    return
                 # 需要归约
                 else:
                     # 获取需要归约的产生式
@@ -1153,8 +1235,64 @@ class LR_Parser(Parser):
                     assert len(status_stack) > 0
                     temp_status = status_stack[-1]
                     next_status = self.PDA.table.get_goto(temp_status, current_rule.left.s)
-                    status_stack.append(next_status)
+                    status_stack.append(next_status[0][1])
                     symbol_stack.append(current_rule.left)
+                    lex_seq.append(current_symbol)
+
+        raise Exception('你怎么到这里来了')
+
+    # 接收token序列的parse
+    def parse3(self, token_seq: []):
+        lex_seq = list(map(lambda x: terminal(x[0]), token_seq))
+        lex_seq.reverse()
+        lex_seq.insert(0, end_terminal('$'))
+        # 初始化的两个数据结构
+        symbol_stack = [end_terminal('$')]
+        status_stack = [0]
+
+        unfinished = True
+        while unfinished:
+            # 获得栈顶状态与输入符号
+            current_status = status_stack[-1]
+            current_symbol = lex_seq.pop()
+
+            # 获取操作
+            operation = self.PDA.table.get_action(current_status, current_symbol.s)
+            if len(operation) == 0:
+                print(symbol_stack)
+                print(status_stack)
+                raise Exception('LR分析表遇到未知状态')
+
+            # 需要移进
+            if operation[0][0] == 's':
+                next_status = operation[0][1]
+                symbol_stack.append(current_symbol)
+                status_stack.append(next_status)
+            elif operation[0][0] == 'r':
+                # 完成parsing
+                if operation[0][1] == 0 and isinstance(current_symbol, end_terminal):
+                    # TODO
+                    print('finished parse 2')
+                    return
+                # 需要归约
+                else:
+                    # 获取需要归约的产生式
+                    reduce_rule_number = int(operation[0][1])
+                    current_rule = self.PDA.CFG.rule_by_number(reduce_rule_number)
+                    rule_length = len(current_rule.right)
+                    # TODO 忽略空字符的扩展在这里添加
+                    if current_rule.right[0].s == 'empty':
+                        rule_length = 0
+
+                    for idx in range(rule_length):
+                        status_stack.pop()
+                        symbol_stack.pop()
+                    assert len(status_stack) > 0
+                    temp_status = status_stack[-1]
+                    next_status = self.PDA.table.get_goto(temp_status, current_rule.left.s)
+                    status_stack.append(next_status[0][1])
+                    symbol_stack.append(current_rule.left)
+                    lex_seq.append(current_symbol)
 
         raise Exception('你怎么到这里来了')
 
@@ -1253,8 +1391,8 @@ def cfg_readfile(filename: str):
     rules = []
     nameDict = {}
 
-    firstLine = lines[0][:-1].split(',')
-    secondLine = lines[1][:-1].split(',')
+    firstLine = lines[0][:-1].split(' ')
+    secondLine = lines[1][:-1].split(' ')
     start = n_terminal(firstLine[0])
     n_terminals.append(start)
     nameDict[start.s] = start
@@ -1282,13 +1420,16 @@ def cfg_readfile(filename: str):
             line = line[:-1]
         syms = line.split(' ')
         l = nameDict[syms[0]]
+        print(line)
         rs = list(map(lambda x: nameDict[x], syms[2:]))
         rules.append(rule(l, rs))
 
     return cfg(start, n_terminals, terminals, rules)
 
 
+
 if __name__ == '__main__':
+    pass
     # CFG的数据结构（从简）
     # 0 - terminal
     # 1 - non-terminal
@@ -1297,16 +1438,18 @@ if __name__ == '__main__':
     # FOLLOW = follow(start, n_terminals, terminals, rules, FIRST)
     # SELECT = select(start, n_terminals, terminals, rules, FIRST, FOLLOW)
     # print(SELECT)
-    c = cfg_readfile('testCases/first/cfg_1.txt')
+    c = cfg_readfile('syntax/cfg_syl.txt')
     # TODO 有bug，cfg_regex跑出来不是LALR的，却可以是SLR的。肯定哪里出错了
     # print(c.FIRST)
     # print(c.FOLLOW)
     # print(c.SELECT)
     pda = Automata(c)
-    f = open('syl_result_24.txt', 'w', encoding='utf-8')
+    f = open('syl_grammer_pda.txt', 'w', encoding='utf-8')
     f.write(str(pda))
     f.close()
+    # f = open('syl_grammer_cfg.txt', 'w', encoding='utf-8')
+    # f.write(str(c))
+    # f.close()
     # print(pda)
     # parse = LR_Parser(c)
-    # parse.analyze_str('( entity ( entity | entity | entity ) entity entity * ) | entity')
-    # parse.visulize_tree()
+
