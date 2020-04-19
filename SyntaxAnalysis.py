@@ -1244,24 +1244,111 @@ class LR_Parser(Parser):
     # 接收token序列的parse
     def parse3(self, token_seq: []):
         lex_seq = list(map(lambda x: terminal(x[0]), token_seq))
+        # reduce_record是用于构建树结构的表
+        reduce_record = list(map(lambda x: {x: None}, token_seq))
         lex_seq.reverse()
         lex_seq.insert(0, end_terminal('$'))
         # 初始化的两个数据结构
         symbol_stack = [end_terminal('$')]
         status_stack = [0]
 
+        nTerminalList = self.CFG.n_terminals
+
         unfinished = True
+        # 记录读取字符的位置
+        token_position = 0
+        # 记录错误的位置和新产生式
+        errorList = []
+        errorline = -1
         while unfinished:
             # 获得栈顶状态与输入符号
             current_status = status_stack[-1]
             current_symbol = lex_seq.pop()
+            token_position += 1
 
             # 获取操作
             operation = self.PDA.table.get_action(current_status, current_symbol.s)
             if len(operation) == 0:
-                print(symbol_stack)
-                print(status_stack)
-                raise Exception('LR分析表遇到未知状态')
+                input_length = len(lex_seq) + 1
+                errorList.append(token_seq[-input_length])
+                # print(symbol_stack)
+                # print(status_stack)
+                # raise Exception('LR分析表遇到未知状态')
+                # 恐慌模式错误恢复
+                found3 = False
+                status_backup = []
+                symbol_backup = []
+                while len(status_stack) > 0:
+                    topstatus = status_stack.pop()
+                    topsymbol = symbol_stack.pop()
+                    status_backup.append(topstatus)
+                    symbol_backup.append(topsymbol)
+                    # 判断status对应的GOTO表是否为空,并找出所有可用的状态和对应符号
+                    fine_status = []
+                    fine_symbol = []
+                    found2 = False
+                    for nt in nTerminalList:
+                        goto = self.PDA.table.get_goto(topstatus, nt.s)
+                        if len(goto) == 0:
+                            continue
+                        fine_status.append(goto[0][1])
+                        fine_symbol.append(nt.s)
+
+                    if len(fine_symbol) == 0:
+                        continue
+                    # 找到了goto表不为空，先还一个回去
+                    symbol_stack.append(symbol_backup.pop())
+                    status_stack.append(status_backup.pop())
+                    # 对每一个都试一遍
+                    for idx in range(len(fine_symbol)):
+                        status = fine_status[idx]
+                        symb = fine_symbol[idx]
+                        found1 = False
+                        input_backup = []
+                        while len(lex_seq) > 0:
+                            input_symbol = lex_seq.pop()
+                            # 备份
+                            input_backup.append(input_symbol)
+                            if len(self.PDA.table.get_action(status, input_symbol.s)) == 0:
+                                continue
+                            ac = self.PDA.table.get_action(status, input_symbol.s)[0]
+                            symbol_stack.append(symb)
+                            status_stack.append(status)
+                            found1 = True
+                            break
+                        if found1:
+                            # 退回这个，刚刚拿着用的
+                            lex_seq.append(input_backup[-1])
+                            found2 = True
+                            break
+                        else:
+                            # 退回
+                            while len(input_backup) > 0:
+                                lex_seq.append(input_backup.pop())
+                            continue
+                    if found2:
+                        # TODO 这里应该不用什么了吧，状态栈符号栈输入栈都复原了
+                        found3 = True
+                        break
+                    else:
+                        status_backup.append(status_stack.pop())
+                        symbol_backup.append(symbol_stack.pop())
+                        continue
+                if found3:
+                    # 从头开始
+                    # status_stack.append(status_backup[-1])
+                    # symbol_stack.append(symbol_backup[-1])
+                    # errorList.append(symbol_stack[-1])
+                    continue
+                else:
+                    raise Exception('non')
+                    # if len(status_backup) == 0:
+                    #     print(token_seq[token_position])
+                    #     raise Exception('无法恢复的错误！行号：' + str(token_seq[token_position][-1]))
+                    # else:
+                    #     while len(status_backup) > 0:
+                    #         status_stack.append(status_backup.pop())
+                    #         symbol_stack.append(symbol_backup.pop())
 
             # 需要移进
             if operation[0][0] == 's':
@@ -1273,6 +1360,9 @@ class LR_Parser(Parser):
                 if operation[0][1] == 0 and isinstance(current_symbol, end_terminal):
                     # TODO
                     print('finished parse 2')
+                    self.tree = reduce_record[0]
+                    self.error = errorList
+                    print(errorList)
                     return
                 # 需要归约
                 else:
@@ -1293,6 +1383,20 @@ class LR_Parser(Parser):
                     status_stack.append(next_status[0][1])
                     symbol_stack.append(current_rule.left)
                     lex_seq.append(current_symbol)
+                    token_position -= 1
+
+                    father = current_rule.left.s
+                    size = symbol_stack.__len__()
+
+                    if rule_length == 0:
+                        reduce_record = reduce_record[:size - 2] + \
+                                        [{father: empty_terminal('empty')}] \
+                                        + reduce_record[size - 2:]
+                    else:
+                        s = size
+                        reduce_record = reduce_record[:size - 2] + \
+                                        [{father: reduce_record[size - 2: size - 2 + rule_length]}] \
+                                        + reduce_record[size -2 + rule_length:]
 
         raise Exception('你怎么到这里来了')
 
@@ -1326,6 +1430,27 @@ class LR_Parser(Parser):
                 count += 1
                 self.__treenode(dot, name, nodes, count)
 
+    def __print_node(self, depth: int, string: str, node: dict, lineCount: int):
+        if node is None:
+            return string
+        for (key, value) in node.items():
+            if isinstance(key, tuple):
+                lineCount = key[-1]
+                print(key)
+                string += '\n' + depth * '\t' + str(key[0]) + ':' + str(key[1]) + ' (' + str(lineCount) + ')'
+            else:
+                string += '\n' + depth * '\t' + str(key) + ' (' + str(lineCount) + ')'
+            if not isinstance(value, list):
+                return string
+            else:
+                for v in value:
+                    if isinstance(v, tuple):
+                        lineCount = v[-1]
+                    string = self.__print_node(depth + 1, string, v, lineCount)
+        return string
+
+    def __str__(self):
+        return self.__print_node(0, '', self.tree, 1)
 
 # 默认输入的语言是LL(k)的
 class LL_Parser(Parser):
@@ -1444,12 +1569,13 @@ if __name__ == '__main__':
     # print(c.FOLLOW)
     # print(c.SELECT)
     pda = Automata(c)
-    f = open('syl_grammer_pda.txt', 'w', encoding='utf-8')
-    f.write(str(pda))
-    f.close()
+    # f = open('syl_grammer_pda.txt', 'w', encoding='utf-8')
+    # f.write(str(pda))
+    # f.close()
     # f = open('syl_grammer_cfg.txt', 'w', encoding='utf-8')
     # f.write(str(c))
     # f.close()
     # print(pda)
-    # parse = LR_Parser(c)
+    parse = LR_Parser(c)
+    parse.parse('int [ CONST ] [ CONST ID ;')
 

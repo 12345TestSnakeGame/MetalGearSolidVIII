@@ -1,0 +1,31 @@
+int a;
+real b;
+int[5][3 array;  /*数组缺少右中括号*/
+
+proc func{
+	int abc  /*缺少分号*/
+	aray[0][0] = 2 + 2 + 3;
+}
+
+record student  /*缺少左花括号*/
+	int age;
+	char name;
+	name = '小明';
+}
+
+if (a > array[0][0]) (b == array[0][1]) then {  /*条件错误*/
+	int value;
+	if true then {
+		value = 1;
+	}/*缺少else*/
+	{
+		value = 2;
+	}
+}
+
+/*循环语句*/
+while a > 0 
+do{
+	a = a + 1;
+}
+call func 1); /*缺少左圆括号*/

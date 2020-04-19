@@ -1404,20 +1404,36 @@ class e_NFA(FA):
                         content_stack += copy_stack
                         cur_type = self.__end_category[symb]
                         if cur_type == 'const':
-                            lexical_result.append((symb.s, ''.join(content_stack), line_count))
+                            if '\n' == ch or '\n' in backup_stack:
+                                k = 1 + backup_stack.count('\n')
+                                lexical_result.append((symb.s, ''.join(content_stack), line_count - k))
+                            else:
+                                lexical_result.append((symb.s, ''.join(content_stack), line_count))
                             original_input.append(''.join(content_stack))
                         elif cur_type == 'id':
                             string = ''.join(content_stack)
                             if string in registered_id:
-                                lexical_result.append(('id', registered_id[string], line_count))
+                                if '\n' == ch or '\n' in backup_stack:
+                                    k = 1 + backup_stack.count('\n')
+                                    lexical_result.append(('id', registered_id[string], line_count - k))
+                                else:
+                                    lexical_result.append(('id', registered_id[string], line_count))
                                 original_input.append(''.join(content_stack))
                             else:
                                 new_idx = len(registered_id)
                                 registered_id[string] = new_idx
-                                lexical_result.append(('id', new_idx, line_count))
+                                if ch == '\n' or '\n' in backup_stack:
+                                    k = backup_stack.count('\n')
+                                    lexical_result.append(('id', new_idx, line_count - k - 1))
+                                else:
+                                    lexical_result.append(('id', new_idx, line_count))
                                 original_input.append(''.join(content_stack))
                         else:
-                            lexical_result.append((symb.s, '', line_count))
+                            if ch == '\n' or '\n' in backup_stack:
+                                k = backup_stack.count('\n')
+                                lexical_result.append((symb.s, '', line_count - k))
+                            else:
+                                lexical_result.append((symb.s, '', line_count))
                             original_input.append(''.join(content_stack))
                         current_status = 0
                         backup_stack.clear()
@@ -1441,20 +1457,36 @@ class e_NFA(FA):
                         cur_type = self.__end_category[symb]
 
                         if cur_type == 'const':
-                            lexical_result.append((symb.s, ''.join(content_stack), line_count))
+                            if ch == '\n' or '\n' in backup_stack:
+                                k = backup_stack.count('\n')
+                                lexical_result.append((symb.s, ''.join(content_stack), line_count - k))
+                            else:
+                                lexical_result.append((symb.s, ''.join(content_stack), line_count))
                             original_input.append(''.join(content_stack))
                         elif cur_type == 'id':
                             string = ''.join(content_stack)
                             if string in registered_id:
-                                lexical_result.append(('id', registered_id[string], line_count))
+                                if ch == '\n' or '\n' in backup_stack:
+                                    k = backup_stack.count('\n')
+                                    lexical_result.append(('id', registered_id[string], line_count - k))
+                                else:
+                                    lexical_result.append(('id', registered_id[string], line_count))
                                 original_input.append(''.join(content_stack))
                             else:
                                 new_idx = len(registered_id)
                                 registered_id[string] = new_idx
-                                lexical_result.append(('id', new_idx, line_count))
+                                if ch == '\n' or '\n' in backup_stack:
+                                    k = backup_stack.count('\n')
+                                    lexical_result.append(('id', new_idx, line_count - k))
+                                else:
+                                    lexical_result.append(('id', new_idx, line_count))
                                 original_input.append(''.join(content_stack))
                         else:
-                            lexical_result.append((symb.s, '', line_count))
+                            if ch == '\n' or '\n' in backup_stack:
+                                k = backup_stack.count('\n')
+                                lexical_result.append((symb.s, '', line_count - k))
+                            else:
+                                lexical_result.append((symb.s, '', line_count))
                             original_input.append(''.join(content_stack))
                         current_status = 0
                         backup_stack = []
@@ -1489,20 +1521,36 @@ class e_NFA(FA):
                             content_stack += copy_stack
                             cur_type = self.__end_category[symb]
                             if cur_type == 'const':
-                                lexical_result.append((symb.s, ''.join(content_stack), line_count))
+                                if ch == '\n' or '\n' in backup_stack:
+                                    k = backup_stack.count('\n')
+                                    lexical_result.append((symb.s, ''.join(content_stack), line_count - k))
+                                else:
+                                    lexical_result.append((symb.s, ''.join(content_stack), line_count))
                                 original_input.append(''.join(content_stack))
                             elif cur_type == 'id':
                                 string = ''.join(content_stack)
                                 if string in registered_id:
-                                    lexical_result.append(('id', registered_id[string], line_count))
+                                    if ch == '\n' or '\n' in backup_stack:
+                                        k = backup_stack.count('\n')
+                                        lexical_result.append(('id', registered_id[string], line_count - k))
+                                    else:
+                                        lexical_result.append(('id', registered_id[string], line_count))
                                     original_input.append(''.join(content_stack))
                                 else:
                                     new_idx = len(registered_id)
                                     registered_id[string] = new_idx
-                                    lexical_result.append(('id', new_idx, line_count))
+                                    if ch == '\n' or '\n' in backup_stack:
+                                        k = backup_stack.count('\n')
+                                        lexical_result.append(('id', new_idx, line_count - k))
+                                    else:
+                                        lexical_result.append(('id', new_idx, line_count))
                                     original_input.append(''.join(content_stack))
                             else:
-                                lexical_result.append((symb.s, '', line_count))
+                                if ch == '\n' or '\n' in backup_stack:
+                                    k = backup_stack.count('\n')
+                                    lexical_result.append((symb.s, '', line_count - k))
+                                else:
+                                    lexical_result.append((symb.s, '', line_count))
                                 original_input.append(''.join(content_stack))
                             current_status = 0
                             backup_stack.clear()
@@ -1538,20 +1586,36 @@ class e_NFA(FA):
                                 cur_type = self.__end_category[symb]
 
                                 if cur_type == 'const':
-                                    lexical_result.append((symb.s, ''.join(content_stack), line_count))
+                                    if ch == '\n' or '\n' in backup_stack:
+                                        k = backup_stack.count('\n')
+                                        lexical_result.append((symb.s, ''.join(content_stack), line_count - k))
+                                    else:
+                                        lexical_result.append((symb.s, ''.join(content_stack), line_count))
                                     original_input.append(''.join(content_stack))
                                 elif cur_type == 'id':
                                     string = ''.join(content_stack)
                                     if string in registered_id:
-                                        lexical_result.append(('id', registered_id[string], line_count))
+                                        if ch == '\n' or '\n' in backup_stack:
+                                            k = backup_stack.count('\n')
+                                            lexical_result.append(('id', registered_id[string], line_count - k))
+                                        else:
+                                            lexical_result.append(('id', registered_id[string], line_count))
                                         original_input.append(''.join(content_stack))
                                     else:
                                         new_idx = len(registered_id)
                                         registered_id[string] = new_idx
-                                        lexical_result.append(('id', new_idx, line_count))
+                                        if ch == '\n' or '\n' in backup_stack:
+                                            k = backup_stack.count('\n')
+                                            lexical_result.append(('id', new_idx, line_count - k))
+                                        else:
+                                            lexical_result.append(('id', new_idx, line_count))
                                         original_input.append(''.join(content_stack))
                                 else:
-                                    lexical_result.append((symb.s, '', line_count))
+                                    if ch == '\n' or '\n' in backup_stack:
+                                        k = backup_stack.count('\n')
+                                        lexical_result.append((symb.s, '', line_count - k))
+                                    else:
+                                        lexical_result.append((symb.s, '', line_count))
                                     original_input.append(''.join(content_stack))
                                 current_status = 0
                                 backup_stack = []
@@ -1573,8 +1637,13 @@ class e_NFA(FA):
                     ignore_ch = backup_stack.pop()
                     assert len(content_stack) == 0
                     content.append(ch)
+                    if ch == '\n':
+                        line_count -=1
                     while len(backup_stack) != 0:
                         content.append(backup_stack.pop())
+                        if content[-1] == '\n':
+                            line_count -= 1
+                        # TODO
                     current_status = 0
                     backup_status = 0
                 error_stack.append(ignore_ch)
@@ -1641,11 +1710,14 @@ class e_NFA(FA):
 def test():
     enfa = e_NFA()
     enfa.read('FA/java_fa.dfa')
-    o, r, i = enfa.lexical4Syntax('Syn_source/java_1.java', 'code_java_result.txt')
+    o, r, i = enfa.lexical4Syntax('Syn_source/java_2.java', 'code_java_result.txt')
     c = cfg_readfile('syntax/java_mine_reCustomed.txt')
     # pda = Automata(c)
     parse = LR_Parser(c)
+    # pickle.dump([parse, r], open('p', 'wb'))
     parse.parse3(r)
+    print(str(parse))
+    # parse.visualize_tree()
 
 
 if __name__ == '__main__':
