@@ -1710,7 +1710,7 @@ class e_NFA(FA):
 def test():
     enfa = e_NFA()
     enfa.read('FA/java_fa.dfa')
-    o, r, i = enfa.lexical4Syntax('Syn_source/java_2.java', 'code_java_result.txt')
+    o, r, i = enfa.lexical4Syntax('Syn_source/java_1.java', 'code_java_result.txt')
     c = cfg_readfile('syntax/java_mine_reCustomed.txt')
     # pda = Automata(c)
     parse = LR_Parser(c)

@@ -53,14 +53,29 @@ abstract class test
 	} else {
 		print('yeah');
 	}
-	
+
+	/* 循环语句 */
+    while (id >= 3 && k < 1) {i = 1;}
+
+	do { i =2;} while (false);
+
+	for (int k = 1;k<2;k++){
+		print('HIT');
+	}
 
 	//multiple = 666 * call666(6).six[6][6][6].haha;
 
 	
 	//过程调用
 	HIT(HiTschool, 12, 4 + 5/(Date +3*2));
-	
 
+	a = b+i;
+	b = a-i;
+	i = 3*b;
+	d[i][i] = a;
+
+	e[0] = b;
+	m = (a+i) / 2;
+	d[m][m] = a;
 	
 }
