@@ -1,3 +1,29 @@
+## 目录结构
+
+- DFA_pic 存放词法分析器通过词法得到的DFA的可视化图
+- FA 词法分析器得到的FA自动机
+- Lex_source 词法分析的测试用例
+- regex 为词法分析阶段编写的一些词法
+- report 存放实验报告
+- Syn_source 句法分析的测试用例
+- syntax 为句法分析编写的句法
+  - cfg_syl.txt 孙云龙写的句法，消除了LR(1)中的冲突，写成了我们的代码能够读取的格式
+  - grammar5.txt 孙云龙的句法，用的是他自己的格式
+  - java_mine.txt 我们自己的类java句法，有bug，算是一个初步设计
+  - java_mine_reCustomed.txt 对java_mine的改进，用于展示的句法。对Syn-source中的测试用例已经没什么问题，展示阶段也ok，但仍可能存在bug。
+- testCases 通用的一些测试用例，用到比较少
+  - first 包含老师的习题中的许多文法，用于测试FIRST集
+- ui 实现ui的部分代码
+- cfg_regex.txt 正则表达式的词法。LexicalAnalysis.py必须要与该文件在同一目录下才能运行
+- LexicalAnalysis.py 词法分析部分的代码
+- SyntaxAnalysis.py 句法分析部分的代码
+- SyntaxDirectedTranslation.py 语义分析部分的代码
+- oldSyntax.py 最早的实现，实现了句法分析中的求Select集等几个基本功能，已经不再使用。
+
+## 项目构成
+
+
+
 ## 3-19. 初步构思阶段
 
 打算实验一和实验二一起写了，顺便打好实验三的地基

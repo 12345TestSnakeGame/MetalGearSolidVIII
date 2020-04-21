@@ -1,0 +1,26 @@
+声明语句：
+ 变量声明： 'int' Identifier '=' additiveExpression ';'
+ 数组声明： 'int[]' Identifier  '=' additiveExpression ';'
+ 记录声明： 'record'  Identifier '{'( Type Expression)? '}' ';'
+ 过程声明： [qualifier] returnType Identifier(parameter) '{'expression ';''}'
+表达式及赋值语句：
+additiveExpression : expression op expression ';'
+Identifier '=' additiveExpression ';'
+分支语句：
+ 'if''('statement')' 'then' '{'Expression ';' '}' 'else' '{'Expression ';' '}' ';'
+循环语句：
+'do'  '{'Expression ';' '}' 'while''('statement')' ';'
+'while' '('statement')' '{' expression';''}'';'
+'for' '('statement')''{' expression';''}'';'
+'switch' '('statement')''{' ('case' statement  '{' expression';' '}')? ';' '}'';'
+过程调用语句：
+'call' FunctionName '('parameter')' ';'
+属性调用语句：
+Expression ('.' Expression)?
+泛型：
+[qualifier] '<'expression'>'returnType Identifier(parameter) '{'expression ';''}'
+
+
+补充：1.源代码中出现的标识符和符号，例如while等用''分隔开
+      2.（）？代表出现一次或者多次
+      3. qualifier为限制，例如static、public等
