@@ -22,7 +22,25 @@
 
 ## 项目构成
 
+### SyntaxAnalysis.py
 
+这一部分是最初始的代码，Lexical的一部分代码需要用到这里的内容
+
+symbol代表一个符号，n_terminal与terminal分别继承自symbol，前者代表非终结符，后者代表终结符。empty_terminal与end_terminal分别是空字符与句尾字符，专门把这两个写出来可以方便处理。
+
+rule是文法规则，由左部和右部构成
+
+item则是一个匹配中的rule，position代表当前所匹配到的位置
+
+item_lookahead就是加上了展望符的item
+
+closure是由多个item组成的闭包，类里面包含了一个能够合并几个闭包的函数。
+
+cfg类。一个cfg实例可以读取一个符合一定格式的句法规则文件，然后自动生成SELECT，FOLLOW和FIRST集合
+
+ParsingTable语法分析表类
+
+Automata，读取一个cfg，然后生成自动机。然后根据自动机产生
 
 ## 3-19. 初步构思阶段
 
@@ -69,29 +87,3 @@ C - R
 ## 3-24 拉了一个team，
 
 这个仓库用team代替origin，别传错了
-
-## 目录结构
-
-### LexSource
-
-存储待分析的源代码
-
-### FA
-
-存储用于词法分析的自动机对象。使用e_NFA类的read方法可以读取
-
-### regex
-
-存储各种语言的词法分析的正则表达式
-
-### report
-
-存放实验报告
-
-### testCases
-
-各种测试用例
-
-### DFA_pic
-
-词法分析的自动机可视化。
