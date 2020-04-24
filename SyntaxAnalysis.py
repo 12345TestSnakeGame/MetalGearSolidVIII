@@ -259,7 +259,7 @@ class cfg:
 
         # 分别计算 first， follow与select集
         self.FIRST = {}
-        self.FOLLOW ={}
+        self.FOLLOW = {}
         self.SELECT = {}
         self.__first()
         self.__follow()
