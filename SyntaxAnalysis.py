@@ -154,6 +154,7 @@ class item(rule):
         return self.right[self.position]
 
     def successive_item(self):
+        # TODO bug出在这个位置
         if self.empty:
             return None
         if len(self.right) == self.position:
@@ -412,9 +413,10 @@ class cfg:
                     # 循环到idx，说明idx前面的符号都可以为空，因此将idx符号first集中的所有元素加入
                     cur_sym = cur.right[idx]
                     for cur_first in self.FIRST[cur_sym]:
-                        new_first_symbol.add(cur_first)
-                        if cur_first.s == 'empty':
+                        if isinstance(cur_first, empty_terminal):
                             no_empty = False
+                        else:
+                            new_first_symbol.add(cur_first)
                 # 如果有新的符号可以添加
                 if len(new_first_symbol - self.FIRST[cur.left]) > 0:
                     for sy in new_first_symbol:
@@ -562,13 +564,13 @@ class Automata:
         self.CFG = lang
 
         # 计算LR(0)
-        self.__initial_closure = self.__initial_closure_LR0
-        self.__cal_items = self.__cal_items_LR0
-        c_pool, s_trans, i2c, il = self.__construct_automata()
-        self.__construct_table_LR0(c_pool, s_trans)
+        # self.__initial_closure = self.__initial_closure_LR0
+        # self.__cal_items = self.__cal_items_LR0
+        # c_pool, s_trans, i2c, il = self.__construct_automata()
+        # self.__construct_table_LR0(c_pool, s_trans)
 
         # 计算SLR
-        self.__construct_table_SLR(c_pool, s_trans)
+        # self.__construct_table_SLR(c_pool, s_trans)
 
         # 计算LR(1)
         self.__initial_closure = self.__initial_closure_LR1
@@ -577,7 +579,7 @@ class Automata:
         self.__construct_table_LR1(c_pool, s_trans, i2c, il)
 
         # 计算LALR
-        self.__construct_table_LALR(c_pool, s_trans)
+        # self.__construct_table_LALR(c_pool, s_trans)
         # self.__construct_table()
         # self.closure_dict = {}
 
@@ -1073,10 +1075,11 @@ class Automata:
         return string
 
     def __repr__(self):
-        return self.__string('LR0', self.closures_LR0, self.trans_LR0, self.table_LR0) \
-                 + self.__string('SLR', self.closures_SLR, self.trans_SLR, self.table_SLR) \
-                 + self.__string('LR1', self.closures_LR1, self.trans_LR1, self.table_LR1) \
-                 + self.__string('LALR', self.closures_LALR, self.trans_LALR, self.table_LALR)
+        # return self.__string('LR0', self.closures_LR0, self.trans_LR0, self.table_LR0) \
+        #          + self.__string('SLR', self.closures_SLR, self.trans_SLR, self.table_SLR) \
+        #          + self.__string('LR1', self.closures_LR1, self.trans_LR1, self.table_LR1) \
+        #          + self.__string('LALR', self.closures_LALR, self.trans_LALR, self.table_LALR)
+        return self.__string('LR1', self.closures_LR1, self.trans_LR1, self.table_LR1)
 
     def __eq__(self, other):
         return self.CFG == other.CFG
