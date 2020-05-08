@@ -1,0 +1,4 @@
+int i;
+float j;
+int[4] k;
+float[5][7] test;
