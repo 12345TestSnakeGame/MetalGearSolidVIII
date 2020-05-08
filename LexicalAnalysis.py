@@ -1721,10 +1721,10 @@ def test():
 
 
 if __name__ == '__main__':
-    test()
-    # enfa = e_NFA()
-    # enfa.compile_regex('regex/regex_java.txt')
-    # enfa.write('FA/java_fa.dfa')
+    # test()
+    enfa = e_NFA()
+    enfa.compile_regex('regex/regex_declare_SDT.txt')
+    enfa.write('FA/declare_fa.dfa')
     # enfa.read('FA/java_fa.dfa')
     # enfa.read('C:/Users/MSI-PC/De sktop/Compilers_Lab/FA/java_fa.dfa')
     # enfa.lexical_analyse('Syn_source/java_1.java', 'code_java_result.txt')

@@ -100,6 +100,7 @@ class item(rule):
     def __init__(self, position: int, left: n_terminal, rights: [symbol, ]):
         if len(rights) == 0:
             raise Exception
+        # TODO 这里可能会是一个问题。只判断了是不是empty，且只适用于右部只有empty一个元素的情况。没有计算empty的位置和数量
         if isinstance(rights[0], empty_terminal):
             self.empty = True
         else:
@@ -149,17 +150,42 @@ class item(rule):
         return self
 
     def successive_symbol(self):
+        # TODO 这里没有对空产生式进行处理。是因为保证了空产生式不会运行到这一步吗
         if len(self.right) == self.position:
             return None
-        return self.right[self.position]
+        else:
+            all_empty = True
+            first_nonempty_position = -1
+            met = False
+            for idx in range(self.position, len(self.right)):
+                if not isinstance(self.right[idx], empty_terminal):
+                    all_empty = False
+                    if not met:
+                        first_nonempty_position = idx
+                        met = True
+                    break
+            if all_empty:
+                return None
+            else:
+                return self.right[first_nonempty_position]
+        # return self.right[self.position]
 
     def successive_item(self):
         # TODO bug出在这个位置
-        if self.empty:
-            return None
+        # 已经匹配到了结尾
         if len(self.right) == self.position:
             return None
-        return item(self.position + 1, self.left, self.right)
+        else:
+            p = self.position
+            while p != len(self.right):
+                if not isinstance(self.right[p], empty_terminal):
+                    return item(p, self.left, self.right)
+                p += 1
+            if p == len(self.right):
+                return item(p, self.left, self.right)
+
+        raise Exception('程序不应该到达这里！')
+        # return item(self.position + 1, self.left, self.right)
 
 
 class item_lookahead(item):
@@ -230,11 +256,18 @@ class item_lookahead(item):
         return item_lookahead(self.position, self.left, self.right, self.lookahead.union(other.lookahead))
 
     def successive_item(self):
-        if self.empty:
-            return None
         if len(self.right) == self.position:
             return None
-        return item_lookahead(self.position + 1, self.left, self.right, self.lookahead)
+        else:
+            p = self.position + 1
+            while p != len(self.right):
+                if not isinstance(self.right[p], empty_terminal):
+                    return item_lookahead(p, self.left, self.right, self.lookahead)
+                p += 1
+            # if p == len(self.right):
+            #     return None
+            return item_lookahead(p, self.left, self.right, self.lookahead)
+        # return item_lookahead(self.position + 1, self.left, self.right, self.lookahead)
 
 
 # 读取CFG文法，生成FIRST，FOLLOW和SELECT集
@@ -750,6 +783,7 @@ class Automata:
         # TODO 有很小的几率两个closure的hash值相同，但是用list感觉好麻烦。。。
         items = i_r_closure.items
         items.sort()
+        # TODO 变成tuple之后，在右部包含包括空状态的多个状态的产生式的项目之间的等价性比较会不会出问题？
         status_dict = {count: tuple(items)}
         reversed_status_dict = {tuple(items): count}
 

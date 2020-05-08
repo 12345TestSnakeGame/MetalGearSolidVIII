@@ -14,8 +14,8 @@ S - 		{S1.next = newLabel();}
 			
 S - S' ;
 S -			S'
-			{S'.value}
 			;
+			{S'.excute}
 			
 			
 S - if ( B ) { S1 }
