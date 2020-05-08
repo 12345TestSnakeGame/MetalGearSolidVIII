@@ -1,0 +1,10 @@
+R' R B A
+( ) empty entity | *
+R' - R
+R - B | R
+R - B
+B - A B
+B - A
+A - ( R )
+A - A *
+A - entity
