@@ -47,21 +47,14 @@ DECLARE_VALUE - TYPE id assignment ASSIGN
 ASSIGN - new id SLP PARAMS SRP
 ASSIGN - EXPRESSION
 #################################################
-TYPE - BASIC_TYPE
-TYPE - BASIC_LIST
-TYPE - id
-TYPE - ID_LIST
-BASIC_LIST_LIKE - BASIC_TYPE left_square_brace
-BASIC_LIST - BASIC_LIST_LIKE right_square_brace
-BASIC_LIST - BASIC_LIST LIST
-LIST - left_square_brace right_square_brace LIST
-LIST - left_square_brace right_square_brace
+TYPE - BASIC_TYPE Array
+#TYPE - id
 BASIC_TYPE - INT
 BASIC_TYPE - FLOAT
 BASIC_TYPE - CHAR
-LIST_LIKE - id left_square_brace
-ID_LIST - LIST_LIKE right_square_brace
-ID_LIST - ID_LIST LIST
+TYPE - BASIC_TYPE Array
+Array - empty
+Array - left_square_brace CONST right_square_brace Array
 ##################################################
 # 记录
 RECORD - record id LP DECLARES RP SEMI
@@ -102,10 +95,7 @@ EXPRESSION2 - CALL
 ############################################
 V_ID - ID dot V_ID
 V_ID - ID
-ID - id
-ID - ID_LIST_E
-ID_LIST_E - LIST_LIKE EXPRESSION right_square_brace
-ID_LIST_E - ID_LIST_E left_square_brace EXPRESSION right_square_brace
+ID - id Array
 #ID1 - ID_LIST
 #ID1 - ID_LIST left_square_brace EXPRESSION right_square_brace
 #ID1 - id

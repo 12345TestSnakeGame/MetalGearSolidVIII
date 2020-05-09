@@ -73,7 +73,7 @@ class OP_2_register(Operation):
         T_width = Attr_stack[-2]['width']
 
         # TODO 需要整一个专门的函数
-        platform.variables[id_lexme] = (T_type, T_width)
+        platform.variables[id_lexme] = (T_type, T_width, platform.declare_env['offset'])
         platform.declare_env['offset'] = platform.declare_env['offset'] + T_width
 
 
@@ -135,6 +135,7 @@ class OP_8_getConst(Operation):
             k = key[1]
 
         Attr_stack[-1]['val'] = int(k)
+
 
 def _terminal_with_empty(s: str):
     if s == 'empty':

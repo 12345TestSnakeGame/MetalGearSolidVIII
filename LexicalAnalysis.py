@@ -1433,7 +1433,7 @@ class e_NFA(FA):
                                 k = backup_stack.count('\n')
                                 lexical_result.append((symb.s, '', line_count - k))
                             else:
-                                lexical_result.append((symb.s, '', line_count))
+                                lexical_result.append((symb.s, ''.join(content_stack), line_count))
                             original_input.append(''.join(content_stack))
                         current_status = 0
                         backup_stack.clear()
@@ -1486,7 +1486,7 @@ class e_NFA(FA):
                                 k = backup_stack.count('\n')
                                 lexical_result.append((symb.s, '', line_count - k))
                             else:
-                                lexical_result.append((symb.s, '', line_count))
+                                lexical_result.append((symb.s, ''.join(content_stack), line_count))
                             original_input.append(''.join(content_stack))
                         current_status = 0
                         backup_stack = []
@@ -1520,7 +1520,7 @@ class e_NFA(FA):
                             copy_stack.reverse()
                             content_stack += copy_stack
                             cur_type = self.__end_category[symb]
-                            if cur_type == 'const':
+                            if cur_type == 'CONST':
                                 if ch == '\n' or '\n' in backup_stack:
                                     k = backup_stack.count('\n')
                                     lexical_result.append((symb.s, ''.join(content_stack), line_count - k))
@@ -1550,7 +1550,7 @@ class e_NFA(FA):
                                     k = backup_stack.count('\n')
                                     lexical_result.append((symb.s, '', line_count - k))
                                 else:
-                                    lexical_result.append((symb.s, '', line_count))
+                                    lexical_result.append((symb.s, ''.join(content_stack), line_count))
                                 original_input.append(''.join(content_stack))
                             current_status = 0
                             backup_stack.clear()

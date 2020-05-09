@@ -10,7 +10,22 @@ class CodePlatform:
     code = []
     variables = {}
 
+    environment = []
+    environment_stack = []
+
     declare_env = {}
+
+    temp_variables = []
+    temp_var_count = 0
+
+    def newtemp(self):
+        self.temp_var_count += 1
+        v ='t' + str(self.temp_var_count)
+        self.temp_variables.append(v)
+        return v
+
+    def gen_str(self, code_part: str):
+        self.code.append(code_part)
 
 
 # 进行语法制导翻译的翻译器

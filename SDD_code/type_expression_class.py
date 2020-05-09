@@ -46,9 +46,15 @@ class array_type(complex_type):
 
 
 class record_type(complex_type):
-    def __init__(self, components: [type_expression,]):
+    def __init__(self, components: {}):
         self.components = components
-        self.width = sum(list(map(lambda x: x.width, components)))
+        self.width = sum(list(map(lambda x: x[1][1], components.items())))
+
+    def __str__(self):
+        return 'RECORD{\n' + '\n'.join(list(map(lambda x: x[1][0].__str__(), self.components.items()))) + '\n}'
+
+    def __repr__(self):
+        return self.__str__()
 
 
 if __name__ == '__main__':
